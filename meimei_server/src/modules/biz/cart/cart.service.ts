@@ -216,4 +216,124 @@ export class CartService {
       { status: 0 }
     )
   }
+
+  /**
+   * 获取购物车信息（Shopify 格式）
+   */
+  async getCartInfo(cookieHeader: string): Promise<any> {
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+    const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+    const usd = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart_currency')
+
+    if (!token || !userId) {
+      return this.createEmptyCart(token || 'empty')
+    }
+
+    const cartItems = await this.cartRepository.find({
+      where: { token, userId, status: 1 },
+      order: { cartId: 'ASC' },
+    })
+
+    if (cartItems.length === 0) {
+      return this.createEmptyCart(token)
+    }
+
+    const items = []
+    let totalPrice = 0
+    let totalWeight = 0
+    let itemCount = 0
+
+    for (const item of cartItems) {
+      const priceInCents = Math.round(Number(item.price) * 100)
+      const quantity = item.quantity
+      const linePrice = priceInCents * quantity
+      const weight = 200
+      totalWeight += weight * quantity
+      itemCount += quantity
+      totalPrice += linePrice
+
+      items.push({
+        id: Number(item.variantId),
+        properties: {},
+        quantity,
+        variant_id: Number(item.variantId),
+        key: `${item.variantId}:${md5(item.productUrl || '').toString()}`,
+        title: `${item.productName} - ${item.size}`,
+        price: priceInCents,
+        original_price: priceInCents,
+        presentment_price: Number(item.price),
+        discounted_price: priceInCents,
+        line_price: linePrice,
+        original_line_price: linePrice,
+        total_discount: 0,
+        discounts: [],
+        sku: '',
+        grams: weight,
+        vendor: '',
+        taxable: true,
+        product_id: item.productId,
+        product_has_only_default_variant: false,
+        gift_card: false,
+        final_price: priceInCents,
+        final_line_price: linePrice,
+        url: `${item.productUrl}?variant=${item.variantId}`,
+        featured_image: {
+          aspect_ratio: 1.0,
+          alt: item.productName || '',
+          height: 1500,
+          url: item.productUrl || '',
+          width: 1500,
+        },
+        image: item.productUrl || '',
+        handle: item.productUrl ? item.productUrl.split('/').pop() : '',
+        requires_shipping: true,
+        product_type: '',
+        product_title: item.productName || '',
+        product_description: '',
+        variant_title: item.size || '',
+        variant_options: [item.size || ''],
+        options_with_values: [{ name: 'Size', value: item.size || '' }],
+        line_level_discount_allocations: [],
+        line_level_total_discount: 0,
+        quantity_rule: { min: 1, max: null, increment: 1 },
+        has_components: false,
+      })
+    }
+
+    return {
+      token: `${token}`,
+      note: '',
+      attributes: {},
+      original_total_price: totalPrice,
+      total_price: totalPrice,
+      total_discount: 0,
+      total_weight: totalWeight,
+      item_count: itemCount,
+      items,
+      requires_shipping: true,
+      currency: usd,
+      items_subtotal_price: totalPrice,
+      cart_level_discount_applications: [],
+      discount_codes: [],
+    }
+  }
+
+  private createEmptyCart(token: string): any {
+    return {
+      token: `${token}?key=${md5(token).toString()}`,
+      note: '',
+      attributes: {},
+      original_total_price: 0,
+      total_price: 0,
+      total_discount: 0,
+      total_weight: 0,
+      item_count: 0,
+      items: [],
+      requires_shipping: false,
+      currency: 'USD',
+      items_subtotal_price: 0,
+      cart_level_discount_applications: [],
+      discount_codes: [],
+    }
+  }
 }

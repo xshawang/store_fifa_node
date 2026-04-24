@@ -93,6 +93,15 @@ export class CartController {
     const cookieHeader = request.headers.cookie || ''
     await this.cartService.clearUserCart(cookieHeader)
   }
+
+  /* 获取购物车信息（Shopify 格式） */
+  @Get('.js')
+  @Public()
+  async getCartInfo(@Req() request: Request) {
+    const cookieHeader = request.headers.cookie || ''
+    const cartInfo = await this.cartService.getCartInfo(cookieHeader)
+    return cartInfo
+  }
 }
 
 /* 公开接口：前端用户查询自己的购物车 */

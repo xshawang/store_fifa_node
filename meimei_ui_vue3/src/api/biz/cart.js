@@ -1,5 +1,13 @@
 import request from '@/utils/request'
 
+// 获取购物车信息（Shopify 格式）
+export function getCartInfo() {
+  return request({
+    url: '/cart.js',
+    method: 'get',
+  })
+}
+
 // 添加商品到购物车
 export function addToCart(data) {
   return request({
