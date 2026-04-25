@@ -24,12 +24,13 @@ export class Cart extends BaseEntity {
   userId: string
 
   @ApiProperty({ description: '产品ID' })
-  @Column({ name: 'product_id', comment: '产品ID'})
+  @Column({ name: 'product_id', comment: '产品ID', nullable: true })
+  @IsOptional()
   @IsNumber()
   productId: number
 
   @ApiProperty({ description: 'SKU ID' })
-  @Column({ name: 'sku_id', comment: 'SKU ID', length: 50, nullable: true })
+  @Column({ name: 'sku_id', comment: 'SKU ID', nullable: false })
   @IsOptional()
   skuId: number
   

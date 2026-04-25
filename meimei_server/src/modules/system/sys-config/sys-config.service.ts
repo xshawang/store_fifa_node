@@ -41,10 +41,7 @@ export class SysConfigService {
       where.configType = reqConfigListDto.configType
     }
     if (reqConfigListDto.params) {
-      where.createTime = Between(
-        reqConfigListDto.params.beginTime,
-        moment(reqConfigListDto.params.endTime).add(1, 'day').format(),
-      )
+      where.createTime > moment(reqConfigListDto.params.beginTime).toDate() && where.createTime < moment(reqConfigListDto.params.endTime).toDate()
     }
     const result = await this.sysConfigRepository.findAndCount({
       where,

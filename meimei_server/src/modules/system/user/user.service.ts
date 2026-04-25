@@ -76,10 +76,7 @@ export class UserService {
       where.status = reqUserListDto.status
     }
     if (reqUserListDto.params) {
-      where.createTime = Between(
-        reqUserListDto.params.beginTime,
-        moment(reqUserListDto.params.endTime).add(1, 'day').format(),
-      )
+      where.createTime > moment(reqUserListDto.params.beginTime).toDate() && where.createTime < moment(reqUserListDto.params.endTime).toDate()
     }
     const deptId = reqUserListDto.deptId ?? ''
     const queryBuilde = this.userRepository

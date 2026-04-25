@@ -6,7 +6,14 @@ import { ExcelTypeEnum } from 'src/modules/common/excel/excel.enum'
 
 export class BaseEntity {
   /* 创建时间 */
-  @CreateDateColumn({ name: 'create_time', comment: '创建时间' })
+@Column({
+  name: 'create_time',
+  type: 'datetime', // 强制指定类型
+  comment: '创建时间',
+  precision: 0,
+  nullable: false,         // 必须加
+  default: () => 'CURRENT_TIMESTAMP', // 强制指定正确默认值
+})
   @ApiHideProperty()
   @Excel({
     name: '创建时间',
@@ -14,12 +21,20 @@ export class BaseEntity {
     dateFormat: 'YYYY-MM-DD HH:mm:ss',
     sort: 100,
   })
-  createTime: Date | string
+  createTime: Date 
 
   /* 更新时间 */
-  @UpdateDateColumn({ name: 'update_time', comment: '更新时间' })
+@Column({
+  name: 'update_time',
+  type: 'timestamp',
+  comment: '更新时间',
+  precision: 0,
+  nullable: false,         // 必须加
+  default: () => 'CURRENT_TIMESTAMP', // 强制指定正确默认值
+  
+})
   @ApiHideProperty()
-  updateTime: Date | string
+  updateTime: Date  
 
   /* 创建人 */
   @Column({ name: 'create_by', comment: '创建人', length: 30, default: '' })

@@ -68,23 +68,13 @@ export class ProductService {
       total,
     }
   }
-
-  /**
-   * 根据SKU ID查询产品
-   */
-  async findOne(skuId: number): Promise<Product> {
-    const product = await this.productRepository.findOne({ where: { skuId } })
-    if (!product) {
-      throw new ApiException('产品不存在')
-    }
-    return product
-  }
+ 
 
   /**
    * 根据productId查询产品
    */
-  async findByProductId(productId: string): Promise<Product> {
-    return await this.productRepository.findOne({ where: { productId: +productId } })
+  async findOne(productId: number): Promise<Product> {
+    return await this.productRepository.findOne({ where: { productId } })
   }
 
   /**

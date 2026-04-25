@@ -7,6 +7,7 @@ import { PaginatedDto } from 'src/common/dto/paginated.dto'
 import { ApiException } from 'src/common/exceptions/api.exception'
 import { CookieService } from './cart-cookie.service'
 import { ProductService } from '../product/product.service'
+import { ProductSkuService } from '../product/product-sku.service'
 const crypto = require('crypto');
 function md5(str: string): string {
   return crypto.createHash('md5').update(str).digest('hex')
@@ -19,34 +20,69 @@ export class CartService {
     private readonly cartRepository: Repository<Cart>,
     private readonly cookieService: CookieService,
     private readonly productService: ProductService,
+    private readonly productSkuService: ProductSkuService,
   ) {}
 
   /**
    * 添加商品到购物车
    */
   async addToCart(createCartDto: CreateCartDto, cookieHeader: string): Promise<any> {
-    // 从 cookie 中提取用户标识
-    const userId = this.cookieService.extractKeyFromCookie(cookieHeader,"_shopify_y")
+    // 从 cookie 中提取用户标识和 token
+    let userId = this.cookieService.extractKeyFromCookie(cookieHeader, "_shopify_y");
+    let token = this.cookieService.extractKeyFromCookie(cookieHeader, "cart");
+    console.log('add to cart userId:', userId, 'token:', token)
+    // 如果 cookie 不存在，生成新的（但这通常不会发生，因为前端会先设置）
     if (!userId) {
-      throw new ApiException('无法识别用户信息，请确保已启用 cookie')
+      userId = crypto.randomUUID();
     }
-    const token = this.cookieService.extractKeyFromCookie(cookieHeader,"cart")
-    if(!token) {
-      throw new ApiException('无法识别用户信息，请确保已启用 cookie')
+    if (!token) {
+      token = crypto.randomUUID();
     }
-    // 查询产品信息（可选，用于填充购物车中的产品信息）
+
+    // createCartDto.id 即为 sku_id
+    const skuId = createCartDto.id
+    
+    // 从 biz_product_sku 表中查询 SKU 信息
+    let productSku = await this.productSkuService.findOne(skuId)
+    
+    // 如果 SKU 不存在，创建一条新记录
+    if (!productSku) {
+      // 尝试从产品表获取产品信息
+      const product = await this.productService.findOne(createCartDto.productId)
+      
+      productSku = await this.productSkuService.createOrUpdate(
+        skuId,
+        createCartDto.productId,
+        skuId, // variantId 默认使用 skuId
+        product?.sku || '', // sku 编码
+        createCartDto.size1 // size
+      )
+    } else {
+      // 如果 SKU 存在，检查 size 是否有值，如果没有且传入了 size1，则更新
+      if (!productSku.size && createCartDto.size1) {
+        await this.productSkuService.createOrUpdate(
+          skuId,
+          productSku.productId,
+          productSku.variantId,
+          productSku.sku,
+          createCartDto.size1
+        )
+        // 重新获取更新后的 SKU
+        productSku = await this.productSkuService.findOne(skuId)
+      }
+    }
+
+    // 查询产品信息（用于填充购物车中的产品信息）
     let productName: string | null = null
     let price: number | null = null
     let productUrl: string | null = null
     
-   
-      const product = await this.productService.findOne(createCartDto.id)
-      if (product) {
-        productName = product.productName
-        price = product.price
-        productUrl = product.productUrl
-      }
- 
+    const product = await this.productService.findOne(createCartDto.productId)
+    if (product) {
+      productName = product.productName
+      price = product.price
+      productUrl = product.productUrl
+    }
 
     // 检查购物车中是否已存在相同的产品和尺码组合
     const existingCart = await this.cartRepository.findOne({
@@ -55,7 +91,7 @@ export class CartService {
         userId:userId,
         productId: createCartDto.productId,
         skuId: createCartDto.id,
-        size: createCartDto.size,
+        size: createCartDto.size1,
         status: 1,
       },
     })
@@ -67,70 +103,98 @@ export class CartService {
       existingCart.sections = createCartDto.sections || existingCart.sections
       existingCart.sectionsUrl = createCartDto.sectionsUrl || existingCart.sectionsUrl
       existingCart.updateBy = userId
-      return await this.cartRepository.save(existingCart)
-    }
+      await this.cartRepository.save(existingCart)
+    }else{
 
-    // 创建新的购物车项
-    const cart = this.cartRepository.create({
-      token,
-      userId,
-      productId: createCartDto.productId,
-      skuId: createCartDto.id,
-      variantId: String(createCartDto.id),
-      size: createCartDto.size,
-      formType: createCartDto.formType || 'product',
-      quantity: createCartDto.quantity || 1,
-      sectionId: createCartDto.sectionId,
-      sections: createCartDto.sections,
-      sectionsUrl: createCartDto.sectionsUrl,
-      productName,
-      price,
-      productUrl,
-      status: 1,
-      createBy: userId,
-      updateBy: userId,
-    })
+      // 创建新的购物车项
+      const cart = this.cartRepository.create({
+        token,
+        userId,
+        productId: createCartDto.productId,
+        skuId: createCartDto.id,
+        variantId: String(createCartDto.id),
+        size: createCartDto.size1,
+        formType: createCartDto.formType || 'product',
+        quantity: createCartDto.quantity || 1,
+        sectionId: createCartDto.sectionId,
+        sections: createCartDto.sections,
+        sectionsUrl: createCartDto.sectionsUrl,
+        productName,
+        price,
+        productUrl: product.imageUrl || '',
+        status: 1,
+        createBy: userId,
+        updateBy: userId,
+      })
 
-     await this.cartRepository.save(cart);
-
+      await this.cartRepository.save(cart);
+  }
+     
+     // 确保 product 存在
+     if (!product) {
+       throw new ApiException('产品不存在')
+     }
+     
      const productPrice = product.price*100;
-     const productSections = {};
-     //拼接返回信息
-    const result =  {discounted_price:productPrice,discounts:[],featured_image:{
-        alt:product.productName,height:1500,aspect_ratio:1,
-        url:product.productUrl,width:1500        
-    },
-    final_line_price:productPrice,final_price:productPrice,gift_card:createCartDto.formType=='product'?true:false,
-    grams:5000,handle:createCartDto.sectionsUrl.substring(createCartDto.sectionsUrl.lastIndexOf('/')+1),
-    id:createCartDto.id,imgage:product.productUrl,key:createCartDto.id+":"+md5(product.productUrl).toString(),
-    line_level_discounts:[],line_price:productPrice,line_level_total_discount:0，
-    options_with_values:[{name:'Size',value:createCartDto.size}],
-    original_line_price:productPrice,
-    original_price:productPrice,
-    presentment_price:product.price,
-    price:productPrice,
-    product_description:product.description,
-    product_has_only_default_variant:false,
-    product_id:product.productId,
-    product_title:product.productName,
-    product_type:product.productType,
-    properties:{},
-    quantity:createCartDto.quantity,
-    requires_shipping:true,
-    sections:productSections,
-    sku:product.sku,
-    taxable:true,
-    title:product.productName+' '+createCartDto.size,
-    total_discount:0,
-    untranslated_product_title:product.productName,
-    untranslated_variant_title:createCartDto.size,
-    url:createCartDto.sectionsUrl+'?variant='+createCartDto.id,
-    variant_id:createCartDto.id,
-    variant_title:createCartDto.size,
-    variant_options:[createCartDto.size],
-    vendor:product.brand
+     
+     // 生成购物车 sections HTML
+     const cartDrawerHtml = await this.getCartHTML(cookieHeader);
+     const cartIconHtml = await this.getCartIconHTML(cookieHeader);
+     
+     //拼接返回信息 - Shopify 格式
+    const result = {
+      id: createCartDto.productId,
+      token: token,
+      key: `${createCartDto.id}:${md5(product.productUrl || '').toString()}`,
+      sections: {
+        "cart-drawer": cartDrawerHtml,
+        "cart-icon-bubble": cartIconHtml
+      },
+      sections_url: createCartDto.sectionsUrl,
+      // 保留原有字段用于兼容
+      discounted_price: productPrice,
+      discounts: [],
+      featured_image: {
+        alt: product.productName,
+        height: 1500,
+        aspect_ratio: 1,
+        url: product.productUrl,
+        width: 1500
+      },
+      final_line_price: productPrice,
+      final_price: productPrice,
+      gift_card: createCartDto.formType == 'product' ? true : false,
+      grams: 5000,
+      handle: createCartDto.sectionsUrl.substring(createCartDto.sectionsUrl.lastIndexOf('/') + 1),
+      line_level_discounts: [],
+      line_price: productPrice,
+      line_level_total_discount: 0,
+      options_with_values: [{ name: 'Size', value: createCartDto.size1 }],
+      original_line_price: productPrice,
+      original_price: productPrice,
+      presentment_price: product.price,
+      price: productPrice,
+      product_description: product.description,
+      product_has_only_default_variant: false,
+      product_id: product.productId,
+      product_title: product.productName,
+      product_type: product.productType,
+      properties: {},
+      quantity: createCartDto.quantity,
+      requires_shipping: true,
+      sku: product.sku,
+      taxable: true,
+      title: product.productName + ' ' + createCartDto.size1,
+      total_discount: 0,
+      untranslated_product_title: product.productName,
+      untranslated_variant_title: createCartDto.size1,
+      url: createCartDto.sectionsUrl + '?variant=' + createCartDto.id,
+      variant_id: createCartDto.id,
+      variant_title: createCartDto.size1,
+      variant_options: [createCartDto.size1],
+      vendor: product.brand
     }
-     return  result;
+    return result;
   }
 
 
@@ -215,6 +279,50 @@ export class CartService {
       { userId, status: 1 },
       { status: 0 }
     )
+  }
+
+
+  /**
+   * 获取购物车 HTML（用于 sections 返回）
+   */
+  async getCartHTML(cookieHeader: string): Promise<string> {
+    return this.getCart(cookieHeader);
+  }
+
+  /**
+   * 获取购物车图标 HTML（用于 sections 返回）
+   */
+  async getCartIconHTML(cookieHeader: string): Promise<string> {
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart');
+    const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y');
+    console.log('getCartIconHTML userId:', userId, 'token:', token)
+    let itemCount = 0;
+
+    if (token && userId) {
+      const cartItems = await this.cartRepository.find({
+        where: { token, userId, status: 1 },
+      });
+      itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+    }
+
+    const itemText = itemCount === 1 ? 'item' : 'items';
+
+    return `<div id="shopify-section-cart-icon-bubble" class="shopify-section">
+  <a href="/cart" class="header__icon header__icon--cart link focus-inset" id="cart-icon-bubble" aria-label="Cart Drawer" role="button" aria-haspopup="dialog">
+    <span class="svg-wrapper">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <mask id="mask0_785_13254" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="20" height="20">
+          <rect width="20" height="20" fill="#D9D9D9"/>
+        </mask>
+        <g mask="url(#mask0_785_13254)">
+          <path d="M1 1H4L6.68 14.39C6.77642 14.8754 7.02817 15.3132 7.3953 15.6342C7.76243 15.9553 8.22373 16.1414 8.706 16.163H15.48C15.9445 16.1613 16.3913 15.9939 16.7396 15.6914C17.088 15.3888 17.3148 14.9713 17.377 14.516L19 4H5" stroke="#141414" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+      </svg>
+    </span>
+    <span class="visually-hidden">Cart</span>
+    ${itemCount > 0 ? `<span class="cart-count-bubble">\n      <span aria-hidden="true">${itemCount}</span>\n      <span class="visually-hidden">${itemCount} ${itemText}</span>\n    </span>` : ''}
+  </a>
+</div>`;
   }
 
   /**
@@ -335,5 +443,429 @@ export class CartService {
       cart_level_discount_applications: [],
       discount_codes: [],
     }
+  }
+
+  /**
+   * 获取购物车 HTML 内容（Shopify Cart Drawer 格式）
+   */
+  async getCart(cookieHeader: string, sectionId?: string): Promise<string> {
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+    const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+
+    if (!token || !userId) {
+      return this.createEmptyCartHTML(token || 'empty')
+    }
+
+    const cartItems = await this.cartRepository.find({
+      where: { token, userId, status: 1 },
+      order: { cartId: 'ASC' },
+    })
+
+    if (cartItems.length === 0) {
+      return this.createEmptyCartHTML(token)
+    }
+
+    // 生成购物车项目 HTML
+    let cartItemsHTML = ''
+    let totalPrice = 0
+    let itemCount = 0
+
+    for (let index = 0; index < cartItems.length; index++) {
+      const item = cartItems[index]
+      const lineIndex = index + 1
+      const quantity = item.quantity
+      const lineTotal = Number(item.price) * quantity
+      totalPrice += lineTotal
+      itemCount += quantity
+
+      // 获取 SKU 信息
+      const productSkus = await this.productSkuService.findByProductId(item.productId)
+      
+      // 生成 SKU 选项 HTML
+      let skuOptionsHTML = ''
+      if (productSkus.length > 0) {
+        skuOptionsHTML = this.generateSkuOptionsHTML(item, productSkus, lineIndex)
+      }
+
+      // 生成单个购物车项目 HTML
+      cartItemsHTML += this.generateCartItemHTML(item, lineIndex, skuOptionsHTML)
+    }
+
+    // 生成完整的购物车 HTML
+    return this.generateCartDrawerHTML(cartItemsHTML, totalPrice, itemCount, cartItems.length)
+  }
+
+  /**
+   * 生成 SKU 选项 HTML
+   */
+  private generateSkuOptionsHTML(cartItem: Cart, productSkus: any[], lineIndex: number): string {
+    const currentSkuId = cartItem.skuId
+    const currentSize = cartItem.size
+    
+    // 为每个 SKU 生成固定的 32 位 MD5 值（基于 sku_id）
+    const getMd5ForSku = (skuId: number) => {
+      return md5(`sku_${skuId}_size_option`)
+    }
+
+    let optionsHTML = ''
+    for (const sku of productSkus) {
+      const md5Hash = getMd5ForSku(sku.skuId)
+      const isSelected = sku.skuId === currentSkuId ? 'selected' : ''
+      const stock = 100 // 默认库存，可以从数据库或其他地方获取
+      
+      optionsHTML += `
+  <option
+    value="${sku.skuId}"
+    data-stock="${stock}"
+    ${isSelected}
+  >
+    ${sku.size || 'One Size'}
+  </option>`
+    }
+
+    const md5Hash = getMd5ForSku(currentSkuId)
+    
+    return `
+  <div class="product-option">
+    <label for="Size-${currentSkuId}:${md5Hash}">Size:</label>
+    <select
+      id="Size-${currentSkuId}:${md5Hash}"
+      class="cart-size-select"
+      data-key="${currentSkuId}:${md5Hash}"
+      data-index="${lineIndex}"
+      data-input-id="Drawer-quantity-${lineIndex}"
+    >
+      ${optionsHTML}
+    </select>
+  </div>`
+  }
+
+  /**
+   * 生成单个购物车项目 HTML
+   */
+  private generateCartItemHTML(cartItem: Cart, lineIndex: number, skuOptionsHTML: string): string {
+    const productUrl = cartItem.productUrl || ''
+    const imageUrl = cartItem.productUrl ? cartItem.productUrl.replace(/\?.*$/, '') : ''
+    const productName = cartItem.productName || 'Product'
+    const price = Number(cartItem.price).toFixed(2)
+    const quantity = cartItem.quantity
+    const size = cartItem.size || 'One Size'
+
+    // 处理 URL 中的 handle
+    const handle = productUrl ? productUrl.split('/').pop() : ''
+    const productUrlWithVariant = `${productUrl}?variant=${cartItem.skuId}`
+const timestamp = Math.floor(Date.now() / 1000);
+    return `
+<tr
+  id="CartDrawer-Item-${lineIndex}"
+  class="cart-item"
+  role="row"
+>
+  <td
+    class="cart-item__media"
+    role="cell"
+    headers="CartDrawer-ColumnProductImage"
+  >
+    <img
+      class="cart-item__image"
+      src="${imageUrl}?v=${timestamp}&width=300"
+      alt="${productName}"
+      loading="lazy"
+      width="300"
+      height="300"
+    >
+  </td>
+
+  <td class="cart-item__details" role="cell" headers="CartDrawer-ColumnProduct">
+    <a href="${productUrlWithVariant}" class="cart-item__name h4 break">${productName}</a>
+    <dl>
+      ${skuOptionsHTML}
+    </dl>
+    <p class="product-option"></p>
+    <ul class="discounts list-unstyled" role="list" aria-label="Discount"></ul>
+  </td>
+
+  <td class="cart-item__totals right" role="cell" headers="CartDrawer-ColumnTotal">
+    <div class="loading__spinner hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" class="spinner" viewBox="0 0 66 66"><circle stroke-width="6" cx="33" cy="33" r="30" fill="none" class="path"/></svg>
+    </div>
+    <div class="cart-item__price-wrapper">
+      <div class="price price--end">$${price}</div>
+    </div>
+  </td>
+
+  <td
+    class="cart-item__quantity"
+    role="cell"
+    headers="CartDrawer-ColumnQuantity"
+  >
+    <quantity-popover>
+      <div class="cart-item__quantity-wrapper quantity-popover-wrapper">
+        <div class="quantity-popover-container">
+          <quantity-input class="quantity cart-quantity">
+            <button class="quantity__button" name="minus" type="button">
+              <span class="visually-hidden">Decrease quantity for ${productName}</span>
+              <span class="svg-wrapper"><svg xmlns="http://www.w3.org/2000/svg" fill="none" class="icon icon-minus" viewBox="0 0 10 2"><path fill="currentColor" fill-rule="evenodd" d="M.5 1C.5.7.7.5 1 .5h8a.5.5 0 1 1 0 1H1A.5.5 0 0 1 .5 1" clip-rule="evenodd"/></svg></span>
+            </button>
+            <input
+              class="quantity__input"
+              type="number"
+              data-quantity-variant-id="${cartItem.skuId}"
+              name="updates[]"
+              value="${quantity}"
+              data-cart-quantity="${quantity}"
+              min="0"
+              data-min="0"
+              step="1"
+              aria-label="Quantity for ${productName}"
+              id="Drawer-quantity-${lineIndex}"
+              data-index="${lineIndex}"
+            >
+            <button class="quantity__button" name="plus" type="button">
+              <span class="visually-hidden">Increase quantity for ${productName}</span>
+              <span class="svg-wrapper"><svg xmlns="http://www.w3.org/2000/svg" fill="none" class="icon icon-plus" viewBox="0 0 10 10"><path fill="currentColor" fill-rule="evenodd" d="M1 4.51a.5.5 0 0 0 0 1h3.5l.01 3.5a.5.5 0 0 0 1-.01V5.5l3.5-.01a.5.5 0 0 0-.01-1H5.5L5.49.99a.5.5 0 0 0-1 .01v3.5l-3.5.01z" clip-rule="evenodd"/></svg></span>
+            </button>
+          </quantity-input>
+        </div>
+        <cart-remove-button id="CartDrawer-Remove-${lineIndex}" data-index="${lineIndex}">
+          <button
+            type="button"
+            class="button button--tertiary cart-remove-button"
+            aria-label="Remove ${productName} - ${size}"
+            data-variant-id="${cartItem.skuId}"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <mask id="mask0_1453_1776" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="12" height="12">
+                <rect width="12" height="12" fill="#D9D9D9"/>
+              </mask>
+              <g mask="url(#mask0_1453_1776)">
+                <path d="M3.5 10.5C3.225 10.5 2.98958 10.4021 2.79375 10.2063C2.59792 10.0104 2.5 9.775 2.5 9.5V3C2.35833 3 2.23958 2.95208 2.14375 2.85625C2.04792 2.76042 2 2.64167 2 2.5C2 2.35833 2.04792 2.23958 2.14375 2.14375C2.23958 2.04792 2.35833 2 2.5 2H4.5C4.5 1.85833 4.54792 1.73958 4.64375 1.64375C4.73958 1.54792 4.85833 1.5 5 1.5H7C7.14167 1.5 7.26042 1.54792 7.35625 1.64375C7.45208 1.73958 7.5 1.85833 7.5 2H9.5C9.64167 2 9.76042 2.04792 9.85625 2.14375C9.95208 2.23958 10 2.35833 10 2.5C10 2.64167 9.95208 2.76042 9.85625 2.85625C9.76042 2.95208 9.64167 3 9.5 3V9.5C9.5 9.775 9.40208 10.0104 9.20625 10.2063C9.01042 10.4021 8.775 10.5 8.5 10.5H3.5ZM8.5 3H3.5V9.5H8.5V3ZM5 8.5C5.14167 8.5 5.26042 8.45208 5.35625 8.35625C5.45208 8.26042 5.5 8.14167 5.5 8V4.5C5.5 4.35833 5.45208 4.23958 5.35625 4.14375C5.26042 4.04792 5.14167 4 5 4C4.85833 4 4.73958 4.04792 4.64375 4.14375C4.54792 4.23958 4.5 4.35833 4.5 4.5V8C4.5 8.14167 4.54792 8.26042 4.64375 8.35625C4.73958 8.45208 4.85833 8.5 5 8.5ZM7 8.5C7.14167 8.5 7.26042 8.45208 7.35625 8.35625C7.45208 8.26042 7.5 8.14167 7.5 8V4.5C7.5 4.35833 7.45208 4.23958 7.35625 4.14375C7.26042 4.04792 7.14167 4 7 4C6.85833 4 6.73958 4.04792 6.64375 4.14375C6.54792 4.23958 6.5 4.35833 6.5 4.5V8C6.5 8.14167 6.54792 8.26042 6.64375 8.35625C6.73958 8.45208 6.85833 8.5 7 8.5Z" fill="#141414"/>
+              </g>
+            </svg>
+          </button>
+        </cart-remove-button>
+      </div>
+      <div id="CartDrawer-LineItemError-${lineIndex}" class="cart-item__error" role="alert">
+        <small class="cart-item__error-text"></small>
+        <span class="svg-wrapper"><svg class="icon icon-error" viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="5.5" stroke="#fff" stroke-width="2"/><circle cx="6.5" cy="6.5" r="5.5" fill="#EB001B" stroke="#EB001B" stroke-width=".7"/><path fill="#fff" d="m5.874 3.528.1 4.044h1.053l.1-4.044zm.627 6.133c.38 0 .68-.288.68-.656s-.3-.656-.68-.656-.681.288-.681.656.3.656.68.656"/><path fill="#fff" stroke="#EB001B" stroke-width=".7" d="M5.874 3.178h-.359l.01.359.1 4.044.008.341h1.736l.008-.341.1-4.044.01-.359H5.873Zm.627 6.833c.56 0 1.03-.432 1.03-1.006s-.47-1.006-1.03-1.006-1.031.432-1.031 1.006.47 1.006 1.03 1.006Z"/></svg></span>
+      </div>
+    </quantity-popover>
+  </td>
+</tr>`
+  }
+
+  /**
+   * 生成完整的购物车 Drawer HTML
+   */
+  private generateCartDrawerHTML(cartItemsHTML: string, totalPrice: number, itemCount: number, itemCountLabel: number): string {
+    const totalPriceFormatted = totalPrice.toFixed(2)
+    const itemText = itemCountLabel === 1 ? 'item' : 'items'
+
+    return `<div id="shopify-section-cart-drawer" class="shopify-section">
+
+<link href="//cdn.shopify.com/s/files/1/0591/0478/8538/t/5/assets/quantity-popover.css?v=142999833234775652671774385687" rel="stylesheet" type="text/css" media="all" />
+<link href="//cdn.shopify.com/s/files/1/0591/0478/8538/t/5/assets/component-card.css?v=19265040226881398761774385687" rel="stylesheet" type="text/css" media="all" />
+
+<script src="//cdn.shopify.com/s/files/1/0591/0478/8538/t/5/assets/cart.js?v=149940146326666886541775498986" defer="defer"></script>
+<script src="//cdn.shopify.com/s/files/1/0591/0478/8538/t/5/assets/quantity-popover.js?v=987015268078116491774385687" defer="defer"></script>
+
+<style>
+  .drawer {
+    visibility: hidden;
+  }
+  .product-option select{
+    border:0;
+    font-size:10px;
+    line-height:14px;
+  }
+  .product-option label{
+    color:#000;
+    font-size:10px;
+    line-height:14px;
+  }
+  .cart-item.is-switching {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.6;
+  }
+  .cart-item.is-switching::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(2px);
+    z-index: 5;
+  }
+  .cart-item.is-switching::before {
+    content: "";
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border: 3px solid #ddd;
+    border-top: 3px solid #000;
+    border-radius: 50%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: cartSpin 0.8s linear infinite;
+    z-index: 6;
+  }
+  @keyframes cartSpin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
+  .cart-item.is-switching .cart-item__error,
+  .cart-item.is-switching .cart-item__warning {
+    display: none !important;
+  }
+</style>
+
+<cart-drawer class="drawer">
+  <div id="CartDrawer" class="cart-drawer">
+    <div id="CartDrawer-Overlay" class="cart-drawer__overlay"></div>
+    <div class="drawer__inner gradient color-scheme-1" role="dialog" aria-modal="true" aria-label="Your bag" tabindex="-1">
+      <div class="drawer__header">
+        <h2 class="drawer__heading">
+          Your bag
+          <span class="cart-count" aria-live="polite">(${itemCountLabel} ${itemText})</span>
+        </h2>
+        <button class="drawer__close" type="button" onclick="this.closest('cart-drawer').close()" aria-label="Close">
+          <span class="svg-wrapper"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 5L5 15M5 5L15 15" stroke="#141414" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+      </div>
+      <cart-drawer-items>
+        <form action="/cart" id="CartDrawer-Form" class="cart__contents cart-drawer__form" method="post">
+          <div id="CartDrawer-CartItems" class="drawer__contents js-contents">
+            <div class="drawer__cart-items-wrapper">
+              <table class="cart-items" role="table">
+                <thead role="rowgroup" hidden>
+                  <tr role="row">
+                    <th id="CartDrawer-ColumnProductImage" role="columnheader"><span class="visually-hidden">Product image</span></th>
+                    <th id="CartDrawer-ColumnProduct" class="caption-with-letter-spacing" scope="col" role="columnheader">Product</th>
+                    <th id="CartDrawer-ColumnTotal" class="right caption-with-letter-spacing" scope="col" role="columnheader">Total</th>
+                    <th id="CartDrawer-ColumnQuantity" role="columnheader"><span class="visually-hidden">Quantity</span></th>
+                  </tr>
+                </thead>
+                <tbody role="rowgroup">
+                  ${cartItemsHTML}
+                </tbody>
+              </table>
+            </div>
+            <p id="CartDrawer-LiveRegionText" class="visually-hidden" role="status"></p>
+            <p id="CartDrawer-LineItemStatus" class="visually-hidden" aria-hidden="true" role="status">Loading...</p>
+          </div>
+          <div id="CartDrawer-CartErrors" role="alert"></div>
+        </form>
+      </cart-drawer-items>
+      <div class="drawer__footer">
+        <div class="cart-drawer__footer">
+          <div class="cdfd">
+            <small class="tax-note caption-large rte">Taxes, discounts and shipping calculated at checkout.</small>
+            <hr>
+            <div class="totals" role="status">
+              <h4 class="totals__total">Subtotal</h4>
+              <p class="totals__total-value">$${totalPriceFormatted} USD</p>
+            </div>
+          </div>
+          <div class="cart__ctas">
+            <button type="submit" id="CartDrawer-Checkout" class="cart__checkout-button btn btn-primary" name="checkout" form="CartDrawer-Form">Proceed to checkout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</cart-drawer>
+
+<script>
+  document.addEventListener('change', function (e) {
+    const select = e.target.closest('.cart-size-select');
+    if (!select) return;
+    e.stopImmediatePropagation();
+    const inputId = select.dataset.inputId;
+    if (!inputId) return;
+    const quantityInput = document.getElementById(inputId);
+    if (!quantityInput) return;
+    const lineIndex = quantityInput.dataset.index;
+    const currentQty = parseInt(quantityInput.value) || 1;
+    const selectedVariantId = select.value;
+    const selectedOption = select.options[select.selectedIndex];
+    const maxStock = parseInt(selectedOption.dataset.stock) || 0;
+    let finalQty = currentQty;
+    if (maxStock > 0 && currentQty > maxStock) {
+      finalQty = maxStock;
+    }
+    if (finalQty !== currentQty) {
+      quantityInput.value = finalQty;
+    }
+    const cartItem = document.getElementById(\`CartDrawer-Item-\${lineIndex}\`);
+    if (!cartItem) return;
+    cartItem.classList.add('is-switching');
+    fetch('/cart/change.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line: lineIndex, quantity: 0 }),
+    })
+    .then(() => {
+      return fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: selectedVariantId, quantity: finalQty }),
+      }).then(async (res) => {
+        if (!res.ok) {
+          const errorData = await res.json();
+          console.warn('Add error (ignored):', errorData);
+          return Promise.resolve();
+        }
+      });
+    })
+    .then(() => {
+      return fetch('/?sections=cart-drawer');
+    })
+    .then((res) => res.json())
+    .then((data) => {
+      const parser = new DOMParser();
+      const newDoc = parser.parseFromString(data['cart-drawer'], 'text/html');
+      const newDrawer = newDoc.querySelector('cart-drawer');
+      const currentDrawer = document.querySelector('cart-drawer');
+      if (newDrawer && currentDrawer) {
+        currentDrawer.innerHTML = newDrawer.innerHTML;
+      }
+    })
+    .catch((error) => {
+      console.error('Variant switch error:', error);
+    })
+    .finally(() => {
+      cartItem.classList.remove('is-switching');
+    });
+  });
+</script>
+</div>`
+  }
+
+  /**
+   * 生成空购物车 HTML
+   */
+  private createEmptyCartHTML(token: string): string {
+    return `<div id="shopify-section-cart-drawer" class="shopify-section">
+<cart-drawer class="drawer">
+  <div id="CartDrawer" class="cart-drawer">
+    <div id="CartDrawer-Overlay" class="cart-drawer__overlay"></div>
+    <div class="drawer__inner gradient color-scheme-1" role="dialog" aria-modal="true" aria-label="Your bag" tabindex="-1">
+      <div class="drawer__header">
+        <h2 class="drawer__heading">Your bag <span class="cart-count" aria-live="polite">(0 items)</span></h2>
+        <button class="drawer__close" type="button" onclick="this.closest('cart-drawer').close()" aria-label="Close">
+          <span class="svg-wrapper"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 5L5 15M5 5L15 15" stroke="#141414" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+      </div>
+      <div class="drawer__footer">
+        <div class="cart-drawer__footer">
+          <div class="cart__ctas">
+            <button type="submit" id="CartDrawer-Checkout" class="cart__checkout-button btn btn-primary" disabled>Proceed to checkout</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</cart-drawer>
+</div>`
   }
 }

@@ -50,10 +50,7 @@ export class DictService {
       where.status = reqDictTypeListDto.status
     }
     if (reqDictTypeListDto.params) {
-      where.createTime = Between(
-        reqDictTypeListDto.params.beginTime,
-        moment(reqDictTypeListDto.params.endTime).add(1, 'day').format(),
-      )
+      where.createTime > moment(reqDictTypeListDto.params.beginTime).toDate() && where.createTime < moment(reqDictTypeListDto.params.endTime).toDate()
     }
     const result = await this.dictTypeRepository.findAndCount({
       where,

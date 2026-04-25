@@ -48,10 +48,7 @@ export class RoleService {
       where.status = reqRoleListDto.status
     }
     if (reqRoleListDto.params) {
-      where.createTime = Between(
-        reqRoleListDto.params.beginTime,
-        moment(reqRoleListDto.params.endTime).add(1, 'day').format(),
-      )
+      where.createTime > moment(reqRoleListDto.params.beginTime).toDate() && where.createTime < moment(reqRoleListDto.params.endTime).toDate()
     }
     const result = await this.roleRepository.findAndCount({
       select: ['roleId', 'roleName', 'roleKey', 'createTime', 'status', 'roleSort', 'createBy', 'remark'],

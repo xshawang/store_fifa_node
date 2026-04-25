@@ -13,6 +13,9 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
     // getHandler 值将覆盖 getClass上面的值
     const noInterception = this.reflector.getAllAndOverride(PUBLIC_KEY, [context.getHandler(), context.getClass()])
+    console.log('[JwtAuthGuard] Route:', context.getHandler().name)
+    console.log('[JwtAuthGuard] PUBLIC_KEY metadata:', noInterception)
+    console.log('[JwtAuthGuard] Skipping JWT validation:', noInterception)
     if (noInterception) return true
     return super.canActivate(context)
   }

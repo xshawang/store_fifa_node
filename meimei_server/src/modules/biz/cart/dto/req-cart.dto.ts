@@ -1,22 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsOptional, IsString, IsNumber } from 'class-validator'
-import { Type } from 'class-transformer'
+import { Type, Expose } from 'class-transformer'
 import { PaginationDto } from 'src/common/dto/pagination.dto'
 
 export class CreateCartDto {
-  @ApiProperty({ description: '产品ID', required: true })
-  @IsNumber()
-  @Type(() => Number)
+  
+  @ApiProperty({ description: '产品ID（variant id）', required: true })
+  @IsOptional()
   id: number
 
   @ApiProperty({ description: '产品ID（product-id）', required: true })
-  @IsNumber()
-  @Type(() => Number)
+  @IsOptional()
   productId: number
 
-  @ApiProperty({ description: '尺码', required: true })
-  @IsString()
-  size: string
+  @ApiProperty({ description: '尺码（Size-1）', required: true })
+  @IsOptional()
+  size1: string
 
   @ApiProperty({ description: '表单类型', default: 'product' })
   @IsOptional()
@@ -46,7 +45,6 @@ export class CreateCartDto {
   @ApiProperty({ description: '数量', default: 1 })
   @IsOptional()
   @IsNumber()
-  @Type(() => Number)
   quantity?: number
 }
 
