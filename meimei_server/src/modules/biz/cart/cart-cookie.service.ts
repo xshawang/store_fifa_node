@@ -46,7 +46,11 @@ export class CookieService {
    * 从完整的 cookie 字符串中提取用户 ID
    */
   extractKeyFromCookie(cookieString: string, key: string): string | null {
-    return decodeURIComponent(this.parseCookie(cookieString, key))
+    const value = this.parseCookie(cookieString, key);
+    if (!value) {
+      return null;
+    }
+    return decodeURIComponent(value);
   }
 //   extractUserIdFromCookie(cookieString: string): string | null {
 //     const shopifyEssential = this.parseCookie(cookieString, '_shopify_essential')

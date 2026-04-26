@@ -79,3 +79,102 @@ export class QueryCartDto extends PaginationDto {
   @IsNumber()
   status?: number
 }
+
+export class ChangeCartDto {
+  @ApiProperty({ description: '购物车行号(从1开始)', required: true })
+  @IsOptional()
+  line: string | number
+
+  @ApiProperty({ description: '数量', required: true })
+  @IsOptional()
+  quantity: number
+
+  @ApiProperty({ description: 'sections' })
+  @IsOptional()
+  sections: string[]
+
+  @ApiProperty({ description: 'sections URL' })
+  @IsOptional()
+  @IsString()
+  sectionsUrl?: string
+}
+
+export class CheckoutDto {
+  @ApiProperty({ description: 'checkout token' })
+  @IsOptional()
+  @IsString()
+  token?: string
+}
+
+/**
+ * 支付表单 DTO
+ */
+export class CheckoutPayDto {
+  @ApiProperty({ description: '邮箱地址' })
+  @IsOptional()
+  @IsString()
+  email?: string
+
+  @ApiProperty({ description: '国家代码 (如: US, CN)' })
+  @IsOptional()
+  @IsString()
+  countryCode?: string
+
+  @ApiProperty({ description: '名字' })
+  @IsOptional()
+  @IsString()
+  firstName?: string
+
+  @ApiProperty({ description: '姓氏' })
+  @IsOptional()
+  @IsString()
+  lastName?: string
+
+  @ApiProperty({ description: '地址行1' })
+  @IsOptional()
+  @IsString()
+  address1?: string
+
+  @ApiProperty({ description: '地址行2' })
+  @IsOptional()
+  @IsString()
+  address2?: string
+
+  @ApiProperty({ description: '城市' })
+  @IsOptional()
+  @IsString()
+  city?: string
+
+  @ApiProperty({ description: '国家' })
+  @IsOptional()
+  @IsString()
+  country?: string
+
+  @ApiProperty({ description: '区域/地区' })
+  @IsOptional()
+  @IsString()
+  zone?: string
+
+  @ApiProperty({ description: '地址级别1' })
+  @IsOptional()
+  @IsString()
+  addressLevel1?: string
+
+  @ApiProperty({ description: '省份/州' })
+  @IsOptional()
+  @IsString()
+  province?: string
+
+  @ApiProperty({ description: '邮政编码' })
+  @IsOptional()
+  @IsString()
+  postalCode?: string
+
+  @ApiProperty({ description: '电话号码' })
+  @IsOptional()
+  @IsString()
+  phone?: string
+
+  // 允许其他表单数据
+  [key: string]: any
+}

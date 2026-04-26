@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository, Like } from 'typeorm'
 import { Cart } from './entities/cart.entity'
-import { CreateCartDto, UpdateCartDto, QueryCartDto } from './dto/req-cart.dto'
+import { CreateCartDto, UpdateCartDto, QueryCartDto, ChangeCartDto } from './dto/req-cart.dto'
 import { PaginatedDto } from 'src/common/dto/paginated.dto'
 import { ApiException } from 'src/common/exceptions/api.exception'
 import { CookieService } from './cart-cookie.service'
@@ -31,12 +31,21 @@ export class CartService {
     let userId = this.cookieService.extractKeyFromCookie(cookieHeader, "_shopify_y");
     let token = this.cookieService.extractKeyFromCookie(cookieHeader, "cart");
     console.log('add to cart userId:', userId, 'token:', token)
-    // 如果 cookie 不存在，生成新的（但这通常不会发生，因为前端会先设置）
-    if (!userId) {
+    
+    // 如果 userId 不存在或为空字符串，生成新的
+    if (!userId || userId.trim() === '') {
       userId = crypto.randomUUID();
     }
-    if (!token) {
-      token = crypto.randomUUID();
+    
+    // 如果 token 不存在或为空字符串，生成 Shopify 格式的 cart token
+    let isNewToken = false;
+    if (!token || token.trim() === '') {
+      // 生成格式：hWNBQiNi7ELco5gFETwXyMxs?key=23aedfc66aa9cc5f5af1d990f2fd2d52
+      const tokenPart = crypto.randomBytes(16).toString('base64url').substring(0, 24);
+      const keyPart = crypto.randomBytes(16).toString('hex');
+      token = `${tokenPart}?key=${keyPart}`;
+      isNewToken = true;
+      console.log('✅ 生成新的 cart token:', token);
     }
 
     // createCartDto.id 即为 sku_id
@@ -47,6 +56,7 @@ export class CartService {
     
     // 如果 SKU 不存在，创建一条新记录
     if (!productSku) {
+      console.log('SKU 不存在，创建新记录',skuId)
       // 尝试从产品表获取产品信息
       const product = await this.productService.findOne(createCartDto.productId)
       
@@ -58,17 +68,16 @@ export class CartService {
         createCartDto.size1 // size
       )
     } else {
+      console.log('SKU 存在，检查 size 是否有值，如果没有且传入了 size1，则更新',createCartDto.size1)
       // 如果 SKU 存在，检查 size 是否有值，如果没有且传入了 size1，则更新
       if (!productSku.size && createCartDto.size1) {
-        await this.productSkuService.createOrUpdate(
+        productSku =   await this.productSkuService.createOrUpdate(
           skuId,
           productSku.productId,
           productSku.variantId,
           productSku.sku,
           createCartDto.size1
         )
-        // 重新获取更新后的 SKU
-        productSku = await this.productSkuService.findOne(skuId)
       }
     }
 
@@ -127,7 +136,22 @@ export class CartService {
         updateBy: userId,
       })
 
-      await this.cartRepository.save(cart);
+      console.log('💾 准备保存 cart 记录:', {
+        token: cart.token,
+        userId: cart.userId,
+        productId: cart.productId,
+        skuId: cart.skuId,
+        size: cart.size,
+        quantity: cart.quantity
+      });
+
+      const savedCart = await this.cartRepository.save(cart);
+      
+      console.log('✅ Cart 记录已保存:', {
+        cartId: savedCart.cartId,
+        token: savedCart.token,
+        userId: savedCart.userId
+      });
   }
      
      // 确保 product 存在
@@ -165,7 +189,7 @@ export class CartService {
       final_price: productPrice,
       gift_card: createCartDto.formType == 'product' ? true : false,
       grams: 5000,
-      handle: createCartDto.sectionsUrl.substring(createCartDto.sectionsUrl.lastIndexOf('/') + 1),
+      handle: createCartDto.sectionsUrl ? createCartDto.sectionsUrl.substring(createCartDto.sectionsUrl.lastIndexOf('/') + 1) : '',
       line_level_discounts: [],
       line_price: productPrice,
       line_level_total_discount: 0,
@@ -188,13 +212,250 @@ export class CartService {
       total_discount: 0,
       untranslated_product_title: product.productName,
       untranslated_variant_title: createCartDto.size1,
-      url: createCartDto.sectionsUrl + '?variant=' + createCartDto.id,
+      url: createCartDto.sectionsUrl ? createCartDto.sectionsUrl + '?variant=' + createCartDto.id : '',
       variant_id: createCartDto.id,
       variant_title: createCartDto.size1,
       variant_options: [createCartDto.size1],
       vendor: product.brand
     }
+    
+    // 如果是新生成的 token，添加到返回结果中
+    if (isNewToken) {
+      result['_isNewToken'] = true;
+    }
+    
     return result;
+  }
+
+  /**
+   * 修改购物车商品数量
+   */
+  async changeCart(changeCartDto: ChangeCartDto, cookieHeader: string): Promise<any> {
+    // 从 cookie 中提取用户标识和 token
+    let userId = this.cookieService.extractKeyFromCookie(cookieHeader, "_shopify_y");
+    let token = this.cookieService.extractKeyFromCookie(cookieHeader, "cart");
+    console.log('change cart userId:', userId, 'token:', token)
+    
+    if (!userId || !token) {
+      throw new ApiException('无法识别用户信息')
+    }
+
+    // 获取用户的购物车记录，按照 id 从小到大排序
+    const cartItems = await this.cartRepository.find({
+      where: { token, userId, status: 1 },
+      order: { cartId: 'ASC' },
+    })
+
+    // line 参数对应下标+1（从1开始）
+    const lineIndex = Number(changeCartDto.line)
+    const arrayIndex = lineIndex - 1
+
+    // 检查索引是否有效
+    if (arrayIndex < 0 || arrayIndex >= cartItems.length) {
+      throw new ApiException('购物车项不存在')
+    }
+
+    const targetItem = cartItems[arrayIndex]
+    const newQuantity = changeCartDto.quantity
+
+    // 如果数量为0，删除该记录（软删除）
+    if (newQuantity === 0) {
+      targetItem.status = 0
+      targetItem.updateBy = userId
+      await this.cartRepository.save(targetItem)
+    } else {
+      // 更新数量
+      targetItem.quantity = newQuantity
+      targetItem.updateBy = userId
+      await this.cartRepository.save(targetItem)
+    }
+
+    // 解析 sections 参数
+    const sections = changeCartDto.sections || []
+    const sectionsUrl = changeCartDto.sectionsUrl || ''
+
+    // 生成返回数据，按照 scripts/cart.change.md 格式
+    const result = await this.buildChangeCartResponse(
+      cookieHeader,
+      sections,
+      sectionsUrl,
+      newQuantity === 0 ? targetItem : null,
+      newQuantity === 0 ? [] : [targetItem]
+    )
+
+    return result
+  }
+
+  /**
+   * 构建 change cart 返回数据
+   */
+  private async buildChangeCartResponse(
+    cookieHeader: string,
+    sections: string[],
+    sectionsUrl: string,
+    removedItem: Cart | null,
+    updatedItems: Cart[]
+  ): Promise<any> {
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+    const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+    const usd = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart_currency') || 'USD'
+
+    // 获取更新后的购物车记录
+    const cartItems = await this.cartRepository.find({
+      where: { token, userId, status: 1 },
+      order: { cartId: 'ASC' },
+    })
+
+    // 计算总价和总数量
+    let totalPrice = 0
+    let totalWeight = 0
+    let itemCount = 0
+    const items = []
+
+    for (const item of cartItems) {
+      const priceInCents = Math.round(Number(item.price) * 100)
+      const quantity = item.quantity
+      const linePrice = priceInCents * quantity
+      const weight = 200
+      totalWeight += weight * quantity
+      itemCount += quantity
+      totalPrice += linePrice
+
+      items.push({
+        id: Number(item.variantId),
+        properties: {},
+        quantity,
+        variant_id: Number(item.variantId),
+        key: `${item.variantId}:${md5(item.productUrl || '').toString()}`,
+        title: `${item.productName} - ${item.size}`,
+        price: priceInCents,
+        original_price: priceInCents,
+        presentment_price: Number(item.price),
+        discounted_price: priceInCents,
+        line_price: linePrice,
+        original_line_price: linePrice,
+        total_discount: 0,
+        discounts: [],
+        sku: '',
+        grams: weight,
+        vendor: '',
+        taxable: true,
+        product_id: item.productId,
+        product_has_only_default_variant: false,
+        gift_card: false,
+        final_price: priceInCents,
+        final_line_price: linePrice,
+        url: `${item.productUrl}?variant=${item.variantId}`,
+        featured_image: {
+          aspect_ratio: 1.0,
+          alt: item.productName || '',
+          height: 1500,
+          url: item.productUrl || '',
+          width: 1500,
+        },
+        image: item.productUrl || '',
+        handle: item.productUrl ? item.productUrl.split('/').pop() : '',
+        requires_shipping: true,
+        product_type: '',
+        product_title: item.productName || '',
+        product_description: '',
+        variant_title: item.size || '',
+        variant_options: [item.size || ''],
+        options_with_values: [{ name: 'Size', value: item.size || '' }],
+        line_level_discount_allocations: [],
+        line_level_total_discount: 0,
+        quantity_rule: { min: 1, max: null, increment: 1 },
+        has_components: false,
+      })
+    }
+
+    // 构建 items_added 和 items_removed
+    const itemsAdded = []
+    const itemsRemoved = []
+
+    if (removedItem) {
+      const priceInCents = Math.round(Number(removedItem.price) * 100)
+      itemsRemoved.push({
+        id: Number(removedItem.variantId),
+        properties: {},
+        quantity: removedItem.quantity,
+        variant_id: Number(removedItem.variantId),
+        key: `${removedItem.variantId}:${md5(removedItem.productUrl || '').toString()}`,
+        title: `${removedItem.productName} - ${removedItem.size}`,
+        price: priceInCents,
+        original_price: priceInCents,
+        presentment_price: Number(removedItem.price),
+        discounted_price: priceInCents,
+        line_price: priceInCents * removedItem.quantity,
+        original_line_price: priceInCents * removedItem.quantity,
+        total_discount: 0,
+        discounts: [],
+        sku: '',
+        grams: 200,
+        vendor: '',
+        taxable: true,
+        product_id: removedItem.productId,
+        product_has_only_default_variant: false,
+        gift_card: false,
+        final_price: priceInCents,
+        final_line_price: priceInCents * removedItem.quantity,
+        url: `${removedItem.productUrl}?variant=${removedItem.variantId}`,
+        featured_image: {
+          aspect_ratio: 1.0,
+          alt: removedItem.productName || '',
+          height: 1500,
+          url: removedItem.productUrl || '',
+          width: 1500,
+        },
+        image: removedItem.productUrl || '',
+        handle: removedItem.productUrl ? removedItem.productUrl.split('/').pop() : '',
+        requires_shipping: true,
+        product_type: '',
+        product_title: removedItem.productName || '',
+        product_description: '',
+        variant_title: removedItem.size || '',
+        variant_options: [removedItem.size || ''],
+        options_with_values: [{ name: 'Size', value: removedItem.size || '' }],
+        line_level_discount_allocations: [],
+        line_level_total_discount: 0,
+        quantity_rule: { min: 1, max: null, increment: 1 },
+        has_components: false,
+      })
+    }
+
+    // 生成 sections HTML
+    const sectionsObj: any = {}
+    
+    if (sections.includes('cart-drawer')) {
+      sectionsObj['cart-drawer'] = await this.getCartHTML(cookieHeader)
+    }
+    
+    if (sections.includes('cart-icon-bubble')) {
+      sectionsObj['cart-icon-bubble'] = await this.getCartIconHTML(cookieHeader)
+    }
+
+    // 构建返回结果，按照 scripts/cart.change.md 格式
+    const result = {
+      token: `${token}`,
+      note: '',
+      attributes: {},
+      original_total_price: totalPrice,
+      total_price: totalPrice,
+      total_discount: 0,
+      total_weight: totalWeight,
+      item_count: itemCount,
+      items: items,
+      requires_shipping: itemCount > 0,
+      currency: usd,
+      items_subtotal_price: totalPrice,
+      cart_level_discount_applications: [],
+      discount_codes: [],
+      items_added: itemsAdded,
+      items_removed: itemsRemoved,
+      sections: sectionsObj,
+    }
+
+    return result
   }
 
 
@@ -424,6 +685,171 @@ export class CartService {
       cart_level_discount_applications: [],
       discount_codes: [],
     }
+  }
+
+  /**
+   * 获取Checkout信息（用于结算页面）
+   */
+  async getCheckoutInfo(cookieHeader: string): Promise<any> {
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+    const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+    const usd = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart_currency') || 'USD'
+
+    console.log('getCheckoutInfo userId:', userId, 'token:', token)
+
+    if (!token || !userId) {
+      throw new ApiException('无法识别用户信息')
+    }
+
+    // 获取购物车记录，按照 id 从小到大排序
+    const cartItems = await this.cartRepository.find({
+      where: { token, userId, status: 1 },
+      order: { cartId: 'ASC' },
+    })
+
+    if (cartItems.length === 0) {
+      throw new ApiException('购物车为空')
+    }
+
+    // 构建 checkout line items
+    const lineItems = []
+    let subtotalPrice = 0
+    let totalWeight = 0
+    let itemCount = 0
+
+    for (let index = 0; index < cartItems.length; index++) {
+      const item = cartItems[index]
+      const priceInCents = Math.round(Number(item.price) * 100)
+      const quantity = item.quantity
+      const linePrice = priceInCents * quantity
+      const weight = 200 // 默认重量
+      
+      totalWeight += weight * quantity
+      itemCount += quantity
+      subtotalPrice += linePrice
+
+      lineItems.push({
+        id: item.cartId,
+        key: `${item.variantId}:${md5(item.productUrl || '').toString()}`,
+        variant_id: Number(item.variantId),
+        product_id: item.productId,
+        title: item.productName || 'Product',
+        variant_title: item.size || 'One Size',
+        sku: '',
+        vendor: '',
+        quantity: quantity,
+        grams: weight,
+        price: priceInCents,
+        compare_at_price: priceInCents,
+        line_price: linePrice,
+        properties: {},
+        original_line_price: linePrice,
+        total_discount: 0,
+        discounts: [],
+        discounted_price: priceInCents,
+        discounted_line_price: linePrice,
+        gift_card: false,
+        url: `${item.productUrl}?variant=${item.variantId}`,
+        image: item.productUrl || '',
+        handle: item.productUrl ? item.productUrl.split('/').pop() : '',
+        requires_shipping: true,
+        product_type: '',
+        product_title: item.productName || '',
+        product_description: '',
+        variant_options: [item.size || ''],
+        options_with_values: [{ name: 'Size', value: item.size || '' }],
+        line_level_discount_allocations: [],
+        line_level_total_discount: 0,
+        quantity_rule: { min: 1, max: null, increment: 1 },
+        has_components: false,
+      })
+    }
+
+    // 计算总价（可以后续添加税费、运费等）
+    const totalPrice = subtotalPrice
+    const totalTax = 0
+    const totalShipping = 0
+    const totalDiscount = 0
+
+    // 构建 checkout 响应数据
+    const checkoutData = {
+      token: token,
+      cart_token: token,
+      email: '',
+      gateway: '',
+      buyer_accepts_marketing: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      currency: usd,
+      presentment_currency: usd,
+      customer_locale: 'en-SG',
+      line_items: lineItems,
+      name: `#${Date.now()}`,
+      note: '',
+      note_attributes: [],
+      referring_site: '',
+      shipping_lines: [],
+      taxes_included: false,
+      total_weight: totalWeight,
+      total_price: totalPrice,
+      subtotal_price: subtotalPrice,
+      total_tax: totalTax,
+      total_discounts: totalDiscount,
+      total_line_items_price: subtotalPrice,
+      total_duties: null,
+      payment_due: totalPrice,
+      payment_url: `/checkouts/${token}`,
+      web_url: `/checkouts/${token}`,
+      order_id: null,
+      order_status_url: null,
+      order: null,
+      billing_address: null,
+      shipping_address: null,
+      customer: null,
+      completed_at: null,
+      closed_at: null,
+      phone: null,
+      customer_id: null,
+      location_id: null,
+      source_identifier: null,
+      source_url: null,
+      device_id: null,
+      user_id: null,
+      source: 'web',
+      discount_codes: [],
+      tax_lines: [],
+      source_name: 'web',
+      buyer_accepts_sms_marketing: false,
+      sms_marketing_phone: null,
+      total_tip_received: 0,
+      original_total_price: totalPrice,
+      total_shipping_price_set: {
+        shop_money: { amount: '0.00', currency_code: usd },
+        presentment_money: { amount: '0.00', currency_code: usd }
+      },
+      total_price_set: {
+        shop_money: { amount: (totalPrice / 100).toFixed(2), currency_code: usd },
+        presentment_money: { amount: (totalPrice / 100).toFixed(2), currency_code: usd }
+      },
+      total_discount_set: {
+        shop_money: { amount: '0.00', currency_code: usd },
+        presentment_money: { amount: '0.00', currency_code: usd }
+      },
+      total_tax_set: {
+        shop_money: { amount: '0.00', currency_code: usd },
+        presentment_money: { amount: '0.00', currency_code: usd }
+      },
+      subtotal_price_set: {
+        shop_money: { amount: (subtotalPrice / 100).toFixed(2), currency_code: usd },
+        presentment_money: { amount: (subtotalPrice / 100).toFixed(2), currency_code: usd }
+      },
+      total_line_items_price_set: {
+        shop_money: { amount: (subtotalPrice / 100).toFixed(2), currency_code: usd },
+        presentment_money: { amount: (subtotalPrice / 100).toFixed(2), currency_code: usd }
+      }
+    }
+
+    return checkoutData
   }
 
   private createEmptyCart(token: string): any {

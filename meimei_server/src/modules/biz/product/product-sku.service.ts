@@ -35,6 +35,7 @@ export class ProductSkuService {
 
     if (productSku) {
       // 如果存在，检查size是否有值
+      console.log(' SKU 存在，检查 size 是否有值', productSku.size, size)
       if (!productSku.size && size) {
         productSku.size = size
         await this.productSkuRepository.save(productSku)

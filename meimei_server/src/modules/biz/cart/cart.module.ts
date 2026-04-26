@@ -15,6 +15,6 @@ import { ProductSkuService } from '../product/product-sku.service'
   ],
   controllers: [CartController, PublicCartController],
   providers: [CartService, CookieService, ProductSkuService],
-  exports: [CartService],
+  exports: [CartService, CookieService],
 })
 export class CartModule {}
