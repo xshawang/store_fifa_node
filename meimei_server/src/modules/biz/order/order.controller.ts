@@ -7,6 +7,7 @@ import { CookieService } from '../cart/cart-cookie.service'
 import { CheckoutPayDto } from '../cart/dto/req-cart.dto'
 import { Log, BusinessTypeEnum } from 'src/common/decorators/log.decorator'
 import { Keep } from 'src/common/decorators/keep.decorator'
+import { CheckoutTemplateService } from './checkout-template.service'
 
 @ApiTags('订单管理')
 @ApiBearerAuth()
@@ -15,6 +16,7 @@ export class OrderController {
   constructor(
     private readonly orderService: OrderService,
     private readonly cookieService: CookieService,
+    private readonly checkoutTemplateService: CheckoutTemplateService,
   ) {}
 
   /**
@@ -58,24 +60,26 @@ export class OrderController {
 
       // 2. 创建订单
       const ipAddress = request.ip || request.headers['x-forwarded-for'] as string
-      const result = await this.orderService.createOrderFromCart(
+      const orderData = await this.orderService.createOrderFromCart(
         userId,
         token,
         checkoutPayDto,
         ipAddress,
       )
 
-      console.log('✅ 订单创建成功, orderNo:', result.orderNo)
+      console.log('✅ 订单创建成功, orderNo:', orderData.orderNo)
+      console.log('📦 订单商品数量:', orderData.itemCount)
+      console.log('💰 订单总金额:', orderData.totalAmount)
 
-      // 3. 将32位订单编号进行URL编码
-      const encodedOrderNo = encodeURIComponent(result.orderNo)
+      // 3. 动态生成 Checkout HTML（注入订单数据）
+      const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData)
 
-      // 4. 构建重定向 URL
-      const redirectUrl = `http://localhost:8080/checkout.html?v=${encodedOrderNo}`
-      console.log('🔄 302 重定向到:', redirectUrl)
-      
-      // 5. 返回 302 重定向，浏览器自动跳转
-      return response.redirect(302, redirectUrl)
+      console.log('📄 已生成 Checkout HTML 页面')
+      console.log('🔗 支付 URL:', `https://store.fif.com/checkout/pay?v=${orderData.orderNo}`)
+
+      // 4. 返回 HTML 响应（不再 302 重定向）
+      response.setHeader('Content-Type', 'text/html; charset=utf-8')
+      return response.send(html)
     } catch (error) {
       console.error('❌ 订单创建失败:', error)
       // 发生错误时，重定向回购物车页面

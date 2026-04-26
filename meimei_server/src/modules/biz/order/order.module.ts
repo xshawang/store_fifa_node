@@ -5,6 +5,7 @@ import { OrderItem } from './entities/order-item.entity'
 import { Cart } from '../cart/entities/cart.entity'
 import { OrderService } from './order.service'
 import { OrderController } from './order.controller'
+import { CheckoutTemplateService } from './checkout-template.service'
 import { CartModule } from '../cart/cart.module'
 import { CacheModule } from '@nestjs/cache-manager'
 
@@ -15,7 +16,7 @@ import { CacheModule } from '@nestjs/cache-manager'
     CacheModule.register(),
   ],
   controllers: [OrderController],
-  providers: [OrderService],
+  providers: [OrderService, CheckoutTemplateService],
   exports: [OrderService],
 })
 export class OrderModule {}

@@ -85,12 +85,14 @@ export class CartService {
     let productName: string | null = null
     let price: number | null = null
     let productUrl: string | null = null
+    let imageUrl : string |null = null
     
     const product = await this.productService.findOne(createCartDto.productId)
     if (product) {
       productName = product.productName
       price = product.price
-      productUrl = product.productUrl
+      productUrl = product.productUrl   
+      imageUrl = product.imageUrl
     }
 
     // 检查购物车中是否已存在相同的产品和尺码组合
@@ -130,7 +132,7 @@ export class CartService {
         sectionsUrl: createCartDto.sectionsUrl,
         productName,
         price,
-        productUrl: product.imageUrl || '',
+        productUrl: imageUrl || '',
         status: 1,
         createBy: userId,
         updateBy: userId,
@@ -206,7 +208,7 @@ export class CartService {
       properties: {},
       quantity: createCartDto.quantity,
       requires_shipping: true,
-      sku: product.sku,
+      sku: product.sku || '',
       taxable: true,
       title: product.productName + ' ' + createCartDto.size1,
       total_discount: 0,
@@ -216,7 +218,7 @@ export class CartService {
       variant_id: createCartDto.id,
       variant_title: createCartDto.size1,
       variant_options: [createCartDto.size1],
-      vendor: product.brand
+      vendor: product.brand||''
     }
     
     // 如果是新生成的 token，添加到返回结果中

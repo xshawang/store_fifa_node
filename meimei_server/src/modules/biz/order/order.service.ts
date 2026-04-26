@@ -39,7 +39,22 @@ export class OrderService {
     token: string,
     checkoutPayDto: CheckoutPayDto,
     ipAddress: string,
-  ): Promise<{ orderNo: string }> {
+  ): Promise<{ 
+    orderNo: string,
+    orderId: number,
+    totalAmount: number,
+    itemCount: number,
+    currency: string,
+    items: Array<{
+      productName: string,
+      variantName: string,
+      quantity: number,
+      salePrice: number,
+      subtotalAmount: number,
+      productImage: string,
+      productUrl: string,
+    }>
+  }> {
     // 1. 从购物车获取商品信息
     const cartItems = await this.cartRepository.find({
       where: { token, userId, status: 1 },
@@ -194,7 +209,23 @@ export class OrderService {
       itemCount: orderItems.length,
     })
 
-    return { orderNo }
+    // 返回完整的订单数据（用于生成 HTML）
+    return {
+      orderNo,
+      orderId: order.orderId,
+      totalAmount: order.totalAmount,
+      itemCount: orderItems.length,
+      currency: order.currency,
+      items: orderItems.map(item => ({
+        productName: item.productName,
+        variantName: item.variantName,
+        quantity: item.quantity,
+        salePrice: item.salePrice,
+        subtotalAmount: item.subtotalAmount,
+        productImage: item.productImage || '',
+        productUrl: item.productUrl || '',
+      })),
+    }
   }
 
   /**
