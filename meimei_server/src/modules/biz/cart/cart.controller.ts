@@ -28,7 +28,7 @@ export class CartController {
   /* 添加商品到购物车 */
   @UseInterceptors(FilesInterceptor('files'))
   // @RepeatSubmit()
-  @Post('/cart/add')
+  @Post(['/cart/add','/pt/cart/add'])
   @Public()
   @Keep()
   @Log({
@@ -110,7 +110,7 @@ export class CartController {
   }
 
   /* 修改购物车商品数量 */
-  @Post('/cart/change')
+  @Post(['/cart/change','/pt/cart/change'])
   @Public()
   @Header('Content-Type', 'application/json; charset=utf-8')
   @Header('Content-Language', 'en-SG')
@@ -152,39 +152,6 @@ export class CartController {
     return result
   }
 
-  /* 获取checkout信息 */
-  @Post('/cart/checkout')
-  @Public()
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  @Header('Content-Language', 'en-SG')
-  @Header('Cache-Control', 'no-cache, no-store')
-  @Header('X-Content-Type-Options', 'nosniff')
-  @Header('X-Frame-Options', 'DENY')
-  @Header('X-XSS-Protection', '1; mode=block')
-  @Header('X-Download-Options', 'noopen')
-  @Header('X-Permitted-Cross-Domain-Policies', 'none')
-  @Header('Strict-Transport-Security', 'max-age=7889238')
-  @Header('Vary', 'Accept, accept-encoding')
-  @Header('Content-Security-Policy', "block-all-mixed-content; frame-ancestors 'none'; upgrade-insecure-requests;")
-  @Header('Powered-By', 'Shopify')
-  @Header('Shopify-Complexity-Score', '0')
-  @Log({
-    title: '购物车Checkout',
-    businessType: BusinessTypeEnum.other,
-  })
-  async getCheckout(
-    @Req() request: Request,
-  ) {
-    console.log('getCheckout raw body:', request.body)
-    console.log('getCheckout request headers:', JSON.stringify(request.headers))
-    
-    const cookieHeader = request.headers.cookie || ''
-    const result = await this.cartService.getCheckoutInfo(cookieHeader)
-    
-    // 返回 JSON 响应
-    return result
-  }
-
   
 
   /* 分页查询购物车列表 */
@@ -197,7 +164,7 @@ export class CartController {
   }
 
   /* 获取购物车信息（Shopify 格式） - 必须放在 :cartId 之前 */
-  @Get('/cart.js')
+  @Get(["/pt/cart.js", "/cart.js"])
   @Public()
   async getCartInfo(@Req() request: Request) {
     console.log('\n========================================')
@@ -218,7 +185,80 @@ export class CartController {
       throw error
     }
   }
-
+/* 通过购物车ID查询 */
+  @Get('/pt/cartget')
+  @Public()
+  @Keep()
+  async ptCartget(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string) {
+    console.log('\n========================================')
+    console.log('=== getCart called ===', section_id)
+    console.log('getCart Request URL:', request.url, section_id)
+    console.log('getCart Request Method:', request.method, section_id)
+    console.log('getCart Request headers:', JSON.stringify(request.headers, null, 2))
+    const cookieHeader = request.headers.cookie || ''
+    console.log('getCart Cookie header:', cookieHeader)
+    console.log('========================================\n')
+    
+    try {
+      const html = await this.cartService.getCart(cookieHeader, section_id)
+      
+      // 设置响应头
+      response.set('Content-Type', 'text/html; charset=utf-8')
+      response.set('Content-Language', 'en-SG')
+      response.set('X-Content-Type-Options', 'nosniff')
+      response.set('X-Frame-Options', 'DENY')
+      response.set('X-XSS-Protection', '1; mode=block')
+      response.set('X-Download-Options', 'noopen')
+      response.set('X-Permitted-Cross-Domain-Policies', 'none')
+      response.set('Strict-Transport-Security', 'max-age=7889238')
+      response.set('Vary', 'Accept, Accept-Encoding')
+      
+      // 设置 security headers
+      response.set('Content-Security-Policy', "block-all-mixed-content; frame-ancestors 'none'; upgrade-insecure-requests;")
+      
+      // 设置 Shopify 相关 headers
+      response.set('Powered-By', 'Shopify')
+      response.set('Shopify-Complexity-Score', '0')
+      
+      // 设置 Link header for preconnect
+      response.set('Link', '<https://cdn.shopify.com>; rel="preconnect", <https://cdn.shopify.com>; rel="preconnect"; crossorigin')
+      
+      // 设置 NEL (Network Error Logging)
+      response.set('NEL', JSON.stringify({
+        success_fraction: 0.01,
+        report_to: 'cf-nel',
+        max_age: 604800
+      }))
+      
+      // 设置 cookies（如果需要）
+      const hasUserId = cookieHeader.includes('_shopify_y=')
+      if (!hasUserId) {
+        const crypto = require('crypto')
+        const newUserId = crypto.randomUUID()
+        response.cookie('_shopify_y', newUserId, {
+          domain: '.fifa.com',
+          path: '/',
+          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
+          sameSite: 'lax'
+        })
+        response.cookie('localization', 'SG', {
+          path: '/',
+          maxAge: 365 * 24 * 60 * 60 * 1000,
+          sameSite: 'lax'
+        })
+        response.cookie('cart_currency', 'USD', {
+          path: '/',
+          maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
+          sameSite: 'lax'
+        })
+      }
+      
+      response.send(html)
+    } catch (error) {
+      console.error('Error in getCart:', error)
+      response.status(500).send('Internal Server Error')
+    }
+  }
   /* 通过购物车ID查询 */
   @Get('/cartget')
   @Public()

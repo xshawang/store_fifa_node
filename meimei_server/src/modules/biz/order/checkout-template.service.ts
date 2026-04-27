@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as fs from 'fs/promises'
 import * as path from 'path'
+import { usdToBrl } from './../../../common/utils'
+
 
 /**
  * Checkout HTML 模板服务
@@ -12,18 +14,35 @@ export class CheckoutTemplateService implements OnModuleInit {
   private templatePath: string
   private templateCache: string | null = null
 
+  private templatePathBr :string
+  private templateCacheBr : string|null = null
   async onModuleInit() {
     // 模板文件路径：项目根目录/scripts/Checkout.html
     this.templatePath = path.join(
       process.cwd(),
       'scripts',
-      'payment.html'
+      'payment_pt.html'
     )
     
     // 预加载模板到缓存
     try {
       this.templateCache = await fs.readFile(this.templatePath, 'utf-8')
       this.logger.log(`✅ Checkout 模板已加载并缓存: ${this.templatePath}`)
+    } catch (error) {
+      this.logger.error(`❌ 无法加载 Checkout 模板: ${error.message}`)
+      throw error
+    }
+
+     this.templatePathBr = path.join(
+      process.cwd(),
+      'scripts',
+      'payment_pt_br.html'
+    )
+    
+    // 预加载模板到缓存
+    try {
+      this.templateCacheBr = await fs.readFile(this.templatePathBr, 'utf-8')
+      this.logger.log(`✅ Checkout 模板已加载并缓存: ${this.templatePathBr}`)
     } catch (error) {
       this.logger.error(`❌ 无法加载 Checkout 模板: ${error.message}`)
       throw error
@@ -36,6 +55,9 @@ export class CheckoutTemplateService implements OnModuleInit {
   async generateCheckoutHtml(orderData: {
     orderNo: string
     orderId: number
+    totalAmount: number
+    itemCount: number
+    currency: string
     items: Array<{
       productName: string
       variantName: string
@@ -45,16 +67,21 @@ export class CheckoutTemplateService implements OnModuleInit {
       productImage: string
       productUrl: string
     }>
-    totalAmount: number
-    itemCount: number
-    currency: string
   }): Promise<string> {
-    if (!this.templateCache) {
-      throw new Error('模板未加载,请检查模板文件是否存在')
+      let html = this.templateCache
+    if(orderData.currency === 'BRL') {
+      if (!this.templateCacheBr) {
+        throw new Error('模板未加载,请检查模板文件是否存在')
+      }
+      let html = this.templateCacheBr
+    }else {
+      if (!this.templateCache) {
+        throw new Error('模板未加载,请检查模板文件是否存在')
+      }
     }
   
-    let html = this.templateCache
-    this.logger.log(`✅ 准备生成 Checkout HTML,订单:`,JSON.stringify(orderData))
+
+    this.logger.log(`✅ 准备生成 Checkout HTML,订单:`,JSON.stringify(orderData),`currency: ${orderData.currency}`)
     // 1. 替换支付 URL 配置(注入订单编号)
     html = this.replacePayUrlConfig(html, orderData.orderNo)
   
@@ -212,6 +239,16 @@ export class CheckoutTemplateService implements OnModuleInit {
                 <span class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h">`+item.quantity+`</span>
             </div>
         </div>`
+        //介格转换
+        if(orderData.currency == 'BRL') {
+          productHTML +=`<div role="cell"
+            class="_6zbcq52d _6zbcq52c _1fragem3c _1fragem4b _6zbcq51x _6zbcq51u _1fragem8r _6zbcq51r _6zbcq51p _1fragemu2">
+            <div class="_17kya4u1q _1fragem4b _1fragemty _1fragem3c _1fragemt6 Byb5s">
+                <span translate="no"
+                    class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate">R$`+ usdToBrl(Number(priceInDollars)).brl+` (BRL)</span>
+            </div>
+        </div>`
+        }else{
         productHTML +=`<div role="cell"
             class="_6zbcq52d _6zbcq52c _1fragem3c _1fragem4b _6zbcq51x _6zbcq51u _1fragem8r _6zbcq51r _6zbcq51p _1fragemu2">
             <div class="_17kya4u1q _1fragem4b _1fragemty _1fragem3c _1fragemt6 Byb5s">
@@ -219,6 +256,7 @@ export class CheckoutTemplateService implements OnModuleInit {
                     class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate">$`+priceInDollars+`</span>
             </div>
         </div>`
+        }
         productHTML += ` </div></div>`
         // 累加所有商品
         allProductsHTML += productHTML
@@ -247,36 +285,71 @@ export class CheckoutTemplateService implements OnModuleInit {
   private replaceCostSummary(html: string, orderData: any): string {
     try {
       const totalInDollars = (orderData.totalAmount / 100).toFixed(2)
-      
-      // 查找并替换 Subtotal 金额 (第1230-1231行)
-      // <span class="...">Subtotal</span></div><div role="cell" class="_1qy6ue68">
-      //   <span translate="no" class="... notranslate">$180.00</span></div></div>
-      const subtotalRegex = /(<span class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h">Subtotal<\/span><\/div><div role="cell" class="_1qy6ue68">\s*<span translate="no" class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate">)(\$[\d.]+)(<\/span><\/div><\/div>)/
-      
-      if (subtotalRegex.test(html)) {
-        html = html.replace(subtotalRegex, `$1$${totalInDollars}$3`)
-        this.logger.debug('✅ 已替换 Subtotal 金额')
-      } else {
-        this.logger.warn('⚠️ 未找到 Subtotal 金额区域')
+      const FLAG_BRL = orderData.currency == 'BRL'?true:false
+      //直接用字符串截取替换第二个
+      const substr= `_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate`
+      let indexSubstr = html.lastIndexOf(substr);
+      const beforeSubstr = html.substring(0, indexSubstr+substr.length+2);
+      const afterSubstr = html.substring(indexSubstr+substr.length+2);
+      let secondSubstr = afterSubstr.substring(afterSubstr.indexOf('<'));
+
+      if(FLAG_BRL){
+           html = beforeSubstr + 'R$'+usdToBrl(Number(totalInDollars)).brl+` (BRL)` + secondSubstr
+      }else{
+           html = beforeSubstr + '$'+totalInDollars + ' ' + secondSubstr
       }
-      
-      // 查找并替换 Total 金额 (第1244-1247行)
-      // <abbr class="_1qifbzv1 _1qifbzv0 _1fragemz9">
-      //   <span translate="no" class="_19gi7ytn _19gi7ytg _1fragemvp ... notranslate">USD</span></abbr>
-      //   <strong translate="no" class="... notranslate">$180.00</strong>
+     
+      //替换第二个
+      // let indexSubStr2 = secondSubstr.indexOf(substr);
+      // let beforeSubstr2 = secondSubstr.substring(0, indexSubStr2+substr.length+2);
+      // let afterSubstr2 = secondSubstr.substring(indexSubStr2+substr.length+2);
+      // let secondSubstr2 = afterSubstr2.substring(afterSubstr2.indexOf('<'));
+      // html  = beforeSubstr + '$'+totalInDollars + ' ' + beforeSubstr2+'$'+totalInDollars + ' ' + secondSubstr2
+       this.logger.debug('✅ 已替换 Subtotal 金额', { totalInDollars })
+
+      const mobileSubStr = `_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1s _19gi7yt1k _1fragemvv _1fragem3h`;
+      let indexMobileSubStr = html.indexOf(mobileSubStr);
+      const beforeMobileSubStr = html.substring(0, indexMobileSubStr+mobileSubStr.length+2);
+      const afterMobileSubStr = html.substring(indexMobileSubStr+mobileSubStr.length+2);
+      let secondMobileSubStr = afterMobileSubStr.substring(afterMobileSubStr.indexOf('<'));
+      if(FLAG_BRL){
+         html = beforeMobileSubStr + 'R$'+usdToBrl(Number(totalInDollars)).brl+` (BRL)` + secondMobileSubStr
+      }else{
+         html = beforeMobileSubStr + '$'+totalInDollars + ' ' + secondMobileSubStr
+      }
+     
       const totalRegex = /(<span translate="no" class="_19gi7yt0 _19gi7ytn _19gi7ytg _1fragemvp _19gi7yt18 _19gi7yt1h _19gi7yt1n _1fragem3h notranslate">)(USD)(<\/span>)/
       if (totalRegex.test(html)) {
-        html = html.replace(totalRegex, `$1${orderData.currency}`)
-        this.logger.debug('✅ 已替换 货币')
+        html = html.replace(totalRegex, `$1${orderData.currency}$3`)
+        this.logger.debug('✅ 已替换 货币', { currency: orderData.currency })
       } else {
         this.logger.warn('⚠️ 未找到 货币区域')
       }
-      const totalRegexMoney = /(<strong translate="no" class="_19gi7yt0 _19gi7ytq _19gi7ytj _1fragemvs _19gi7yt18 _19gi7yt1g _19gi7yt1s _19gi7yt1k _1fragemvv _1fragem3h notranslate">)(\$[\d.]+)(<\/strong>)/
-      if (totalRegexMoney.test(html)) {
-        html = html.replace(totalRegexMoney, `$1$${totalInDollars}`)
-        this.logger.debug('✅ 已替换 Total')
-      } else {
-        this.logger.warn('⚠️ 未找到 Total 区域')
+
+      const substrt = `_19gi7yt0 _19gi7ytq _19gi7ytj _1fragemvs _19gi7yt18 _19gi7yt1g _19gi7yt1s _19gi7yt1k _1fragemvv _1fragem3h notranslate`
+      let indexSubstrt = html.indexOf(substrt);
+      let beforeSubstrt = html.substring(0, indexSubstrt+substrt.length+2);
+      let afterSubstrt = html.substring(indexSubstrt+substrt.length+2);
+      let secondSubstrt = afterSubstrt.substring( afterSubstrt.indexOf('<'));
+
+       if(FLAG_BRL){
+         html  = beforeSubstrt + 'R$'+usdToBrl(Number(totalInDollars)).brl +  secondSubstrt
+       }else{
+         html  = beforeSubstrt + '$'+totalInDollars + ' ' + secondSubstrt
+       }
+      // const totalRegexMoney = /(<strong translate="no" class="_19gi7yt0 _19gi7ytq _19gi7ytj _1fragemvs _19gi7yt18 _19gi7yt1g _19gi7yt1s _19gi7yt1k _1fragemvv _1fragem3h notranslate">)(\$[\d.]+)(<\/strong>)/
+      // if (totalRegexMoney.test(html)) {
+      //   html = html.replace(totalRegexMoney, `$1$${totalInDollars}$3`)
+      //   this.logger.debug('✅ 已替换 Total', { totalInDollars })
+      // } else {
+      //   this.logger.warn('⚠️ 未找到 Total 区域')
+      // }
+      //直接替换
+      const replaceStr = "checkout/pay";
+      if(FLAG_BRL){
+        html = html.replaceAll(replaceStr, "/checkout/payment?v=" + orderData.orderNo);
+      } else{
+        html = html.replaceAll(replaceStr, "checkout/pay?v=" + orderData.orderNo);
       }
     } catch (error) {
       this.logger.error(`❌ 替换费用摘要失败: ${error.message}`)

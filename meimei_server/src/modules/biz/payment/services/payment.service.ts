@@ -6,7 +6,8 @@ import { PaymentChannelEntity } from '../entities/payment-channel.entity';
 import { DeliverEntity } from '../entities/deliver.entity';
 import { PaymentStrategy } from '../interfaces/payment-strategy.interface';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
-
+import {Order} from '../../order/entities/order.entity';
+import {OrderItem} from '../../order/entities/order-item.entity';
 /**
  * 支付核心服务
  */
@@ -26,6 +27,12 @@ export class PaymentService {
 
     @Inject('PAYMENT_STRATEGIES')
     private readonly strategies: PaymentStrategy[],
+
+    @InjectRepository(Order)
+    private readonly orderRepo: Repository<Order>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepo: Repository<OrderItem>,
+
   ) {}
 
   /**
@@ -70,11 +77,12 @@ export class PaymentService {
 
     await this.paymentOrderRepo.save(paymentOrder);
 
-    // 4. 获取对应的支付策略
+   // 4. 获取对应的支付策略
     const strategy = this.strategies.find(
       (s) => s.getChannelCode() === channel.channelCode,
     );
 
+    
     if (!strategy) {
       throw new Error(`支付策略未找到: ${channel.channelCode}`);
     }
@@ -92,6 +100,9 @@ export class PaymentService {
         cardExpiry: dto.cardExpiry,
         cardCvv: dto.cardCvv,
         cardHolderName: dto.cardHolderName,
+        // 传递 PIX 支付信息（如果有）
+        cpf: dto.cpf,
+        email: dto.email,
       });
 
       if (result.success) {
@@ -285,22 +296,33 @@ export class PaymentService {
   async getOrderInfo(orderNo: string): Promise<any> {
     // TODO: 从订单服务获取订单信息
     // 这里简化处理，实际应该注入OrderService
-    // 示例：
-    // const order = await this.orderService.getOrder(orderNo);
-    // return {
-    //   orderNo: order.orderNo,
-    //   amount: order.totalAmount,
-    //   currency: order.currency,
-    //   items: order.items,
-    // };
-
-    // 临时模拟数据
+    // 示例： 
+    // orderNo: string
+    // orderId: number
+    // items: Array<{
+    //   productName: string
+    //   variantName: string
+    //   quantity: number
+    //   salePrice: number
+    //   subtotalAmount: number
+    //   productImage: string
+    //   productUrl: string
+    // }>
+    // totalAmount: number
+    // itemCount: number
+    // currency: string
+    const order = await this.orderRepo.findOne({ where: { orderNo } });
+    const items = await this.orderItemRepo.find({ where: { orderNo } });
     return {
-      orderNo,
-      amount: 180.00,
-      currency: 'USD',
-      items: [],
+      orderNo: order.orderNo,
+      orderId: order.orderId,
+      totalAmount: order.totalAmount,
+      itemCount: items.length,
+      currency: order.currency,
+      items: items,
     };
+
+    
   }
 
   /**

@@ -51,4 +51,15 @@ export class CreatePaymentDto {
   @IsOptional()
   @IsString()
   cardHolderName?: string;
+
+  // PIX 支付特有字段
+  @ApiProperty({ description: 'CPF（巴西税号）', required: false })
+  @IsOptional()
+  @IsString()
+  cpf?: string;
+
+  @ApiProperty({ description: '用户邮箱', required: false })
+  @IsOptional()
+  @IsString()
+  email?: string;
 }

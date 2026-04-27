@@ -18,7 +18,75 @@ export class OrderController {
     private readonly cookieService: CookieService,
     private readonly checkoutTemplateService: CheckoutTemplateService,
   ) {}
+/**
+   * 从购物车创建订单
+   * POST /cart/post
+   * 处理 application/x-www-form-urlencoded 表单提交，返回 302 重定向
+   */
+  @Post('/pt/cart/post')
+  @Public()
+  @Keep()
+  @Log({
+    title: '创建订单',
+    businessType: BusinessTypeEnum.insert,
+  })
+  async createPtOrderFromCart(
+    @Req() request: Request,
+    @Body() checkoutPayDto: CheckoutPayDto,
+    @Res() response: Response,
+  ) {
+    console.log('==================== /pt/cart/post 请求 ====================')
+    console.log('收到创建订单请求 (application/x-www-form-urlencoded)')
+    console.log('checkoutPayDto:', JSON.stringify(checkoutPayDto, null, 2))
+    console.log('Cookie:', request.headers.cookie)
+    console.log('IP:', request.ip)
+    console.log('==========================================================')
 
+    try {
+      // 1. 从 Cookie 获取用户信息
+      const cookieHeader = request.headers.cookie || ''
+      const userId = await this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+      const token = await this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+
+      if (!userId || !token) {
+        console.error('❌ 缺少用户标识或token')
+        // 表单提交失败，重定向到错误页面或购物车页面
+        return response.redirect(302, '/cart')
+      }
+
+      console.log('✅ userId:', userId)
+      console.log('✅ token:', token)
+
+      // 2. 创建订单
+      const ipAddress = request.ip || request.headers['x-forwarded-for'] as string
+      const orderData = await this.orderService.createOrderFromCart(
+        userId,
+        token,
+        checkoutPayDto,
+        ipAddress,
+      )
+
+      orderData.currency = 'BRL'
+      console.log('✅ 订单创建成功, orderNo:', orderData.orderNo)
+      console.log('📦 订单商品数量:', orderData.itemCount)
+      console.log('💰 订单总金额:', orderData.totalAmount)
+      console.log('💰 订单货币默认BRL:',  orderData.currency)
+
+      // 3. 动态生成 Checkout HTML（注入订单数据）
+      const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData)
+
+      console.log('📄 已生成 Checkout HTML 页面')
+      console.log('🔗 支付 URL:', `https://store.fif.com/checkout/pay?v=${orderData.orderNo}`)
+
+      // 4. 返回 HTML 响应（不再 302 重定向）
+      response.setHeader('Content-Type', 'text/html; charset=utf-8')
+      return response.send(html)
+    } catch (error) {
+      console.error('❌ 订单创建失败:', error)
+      // 发生错误时，重定向回购物车页面
+      return response.redirect(302, '/cart?error=order_creation_failed')
+    }
+  }
   /**
    * 从购物车创建订单
    * POST /cart/post
@@ -67,9 +135,11 @@ export class OrderController {
         ipAddress,
       )
 
+      orderData.currency = 'BRL'  
       console.log('✅ 订单创建成功, orderNo:', orderData.orderNo)
       console.log('📦 订单商品数量:', orderData.itemCount)
       console.log('💰 订单总金额:', orderData.totalAmount)
+      console.log('💰 订单货币默认BRL:',  orderData.currency)
 
       // 3. 动态生成 Checkout HTML（注入订单数据）
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData)

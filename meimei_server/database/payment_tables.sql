@@ -199,3 +199,24 @@ INSERT INTO `biz_payment_channel` (
   '{"timeout": 30, "retry_interval": 5}',
   'X支付支付宝通道'
 );
+
+-- 插入支付通道配置（PIX_PAY - PIX支付）
+INSERT INTO `biz_payment_channel` (
+  `channel_code`, `channel_name`, `channel_type`,
+  `platform_key`, `platform_secret`, `site_code`,
+  `api_base_url`, `api_version`, `notify_url`,
+  `supported_currencies`, `supported_methods`,
+  `min_amount`, `max_amount`, `fee_rate`,
+  `is_active`, `priority`, `sort_order`,
+  `config`, `remark`
+) VALUES (
+  'PIX_PAY', 'PIX支付', 'PIX',
+  'pk_test_pixpay_key_here', 'sk_test_pixpay_secret_here', 'TESTSITE001',
+  'https://api.pixpay.com', 'v1', 'https://store.fif.com/api/payment/notify/pixpay',
+  '["BRL"]',
+  '["PIX"]',
+  1.00, 999999.99, 0.0150,
+  1, 1, 1,
+  '{"timeout": 30, "retry_interval": 5, "allowed_ips": ["54.233.234.196","18.229.23.62","56.125.86.62","18.229.182.144","56.125.155.115"]}',
+  'PIX_PAY通道，支持巴西PIX即时支付，货币BRL'
+);

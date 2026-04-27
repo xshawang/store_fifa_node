@@ -2,7 +2,23 @@ import { networkInterfaces } from 'os'
 import { SnowFlake } from './snowflake'
 
 const idWorker = new SnowFlake(1n, 1n)
+const USD_TO_BRL_RATE = 5;
+export function formatBRL(value: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value);
+}
+export function usdToBrl(amountUsd: number) {
+  const brl = amountUsd * USD_TO_BRL_RATE;
 
+  return {
+    rate: USD_TO_BRL_RATE,
+    usd: amountUsd,
+    brl,
+    formatted: formatBRL(brl),
+  };
+}
 /**
  * 获取雪花id
  */
