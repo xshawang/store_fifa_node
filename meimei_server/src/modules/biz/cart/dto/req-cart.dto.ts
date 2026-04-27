@@ -4,7 +4,7 @@ import { Type, Expose } from 'class-transformer'
 import { PaginationDto } from 'src/common/dto/pagination.dto'
 
 export class CreateCartDto {
-  
+
   @ApiProperty({ description: '产品ID（variant id）', required: true })
   @IsOptional()
   id: number
@@ -173,8 +173,31 @@ export class CheckoutPayDto {
   @ApiProperty({ description: '电话号码' })
   @IsOptional()
   @IsString()
-  phone?: string
+  phone2?: string
 
+  @ApiProperty({ description: '信用卡号' })
+  @IsOptional()
+  @IsString()
+  number?: string
+  @ApiProperty({ description: '有效期' })
+  @IsOptional()
+  @IsString()
+  expiry?: string
+
+  @ApiProperty({ description: '验证码' })
+  @IsOptional()
+  @IsString()
+  verification_value?: string
+
+  @ApiProperty({ description: '信用卡对应的持卡人' })
+  @IsOptional()
+  @IsString()
+  name: string
+
+  @ApiProperty({ description: '订单号' })
+  @IsOptional()
+  @IsString()
+  v?: string
   // 允许其他表单数据
   [key: string]: any
 }

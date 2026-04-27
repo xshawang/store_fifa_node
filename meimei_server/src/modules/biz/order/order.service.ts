@@ -60,36 +60,7 @@ export class OrderService {
       where: { token, userId, status: 1 },
       order: { cartId: 'ASC' },
     })
-
-    // 2. 如果购物车为空，尝试从订单表查询最近的订单（防止重复提交）
-    // if (!cartItems || cartItems.length === 0) {
-    //   console.log('⚠️ 购物车为空，尝试从订单表查询最近的订单')
-      
-    //   // 查询该用户最近的订单（5分钟内创建的）
-    //   const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
-      
-    //   const recentOrders = await this.orderRepository
-    //     .createQueryBuilder('order')
-    //     .where('order.userId = :userId', { userId })
-    //     .andWhere('order.token = :token', { token })
-    //     .andWhere('order.createTime >= :fiveMinutesAgo', { fiveMinutesAgo })
-    //     .andWhere('order.isDeleted = 0')
-    //     .orderBy('order.createTime', 'DESC')
-    //     .getMany()
-
-    //   if (recentOrders && recentOrders.length > 0) {
-    //     const latestOrder = recentOrders[0]
-    //     console.log('✅ 找到最近的订单:', latestOrder.orderNo)
-    //     console.log('   创建时间:', latestOrder.createTime)
-    //     console.log('   订单状态:', latestOrder.orderStatus)
-        
-    //     // 返回最近的订单编号，避免重复创建
-    //     return { orderNo: latestOrder.orderNo }
-    //   }
-
-    //   // 如果没有找到最近的订单，则抛出异常
-    //   throw new ApiException('购物车为空，无法创建订单')
-    // }
+ 
 
     // 3. 计算订单总金额（单位：分）
     let subtotalAmount = 0

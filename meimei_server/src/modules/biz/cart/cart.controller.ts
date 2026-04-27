@@ -185,58 +185,7 @@ export class CartController {
     return result
   }
 
-  /**
-   * 处理结算支付表单提交
-   */
-  @Post('/checkout/pay')
-  @Public()
-  @Header('Content-Type', 'application/json; charset=utf-8')
-  @Header('Content-Language', 'en-SG')
-  @Header('Cache-Control', 'no-cache, no-store')
-  @Header('Pragma', 'no-cache')
-  @Header('Expires', '0')
-  @Header('X-Frame-Options', 'DENY')
-  @Header('X-Content-Type-Options', 'nosniff')
-  @Header('X-XSS-Protection', '1; mode=block')
-  @Header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-  @Header('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;")
-  @Header('Referrer-Policy', 'strict-origin-when-cross-origin')
-  @Header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
-  @Header('X-Request-Id', Date.now().toString())
-  @Header('Server', 'nginx')
-  @Log({
-    title: '结算支付',
-    businessType: BusinessTypeEnum.other,
-  })
-  async checkoutPay(
-    @Req() request: Request,
-    @Body() checkoutPayDto: CheckoutPayDto,
-  ) {
-    console.log('==================== /checkout/pay 请求 ====================')
-    console.log('收到结算支付表单数据：')
-    console.log('checkoutPayDto:', JSON.stringify(checkoutPayDto, null, 2))
-    console.log('完整 request.body:', JSON.stringify(request.body, null, 2))
-    console.log('请求 Headers:', JSON.stringify(request.headers, null, 2))
-    console.log('Cookie:', request.headers.cookie)
-    const userId = await this.cookieService.extractKeyFromCookie(request.headers.cookie,"_shopify_y");
-    const token = await this.cookieService.extractKeyFromCookie(request.headers.cookie, "token");
-
-
-    // TODO: 在这里实现支付处理逻辑
-    // 1. 验证表单数据
-    // 2. 处理支付
-    // 3. 创建订单
-    // 4. 返回结果
-    
-    return {
-      success: true,
-      message: '支付请求已接收',
-      data: checkoutPayDto,
-      timestamp: new Date().toISOString(),
-      userId,
-      token
-    }
-  }
+  
 
   /* 分页查询购物车列表 */
   @Get('list')
