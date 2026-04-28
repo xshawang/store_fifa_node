@@ -30,6 +30,20 @@ export class CartController {
   // @RepeatSubmit()
   @Post(['/cart/add','/pt/cart/add'])
   @Public()
+  @Keep()
+  @Header('Content-Type', 'text/javascript; charset=utf-8')
+  @Header('Content-Language', 'en-SG')
+  @Header('Cache-Control', 'no-cache, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @Header('X-Frame-Options', 'DENY')
+  @Header('X-XSS-Protection', '1; mode=block')
+  @Header('X-Download-Options', 'noopen')
+  @Header('X-Permitted-Cross-Domain-Policies', 'none')
+  @Header('Strict-Transport-Security', 'max-age=7889238')
+  @Header('Vary', 'Accept,accept-encoding')
+  @Header('Content-Security-Policy', "block-all-mixed-content; frame-ancestors 'none'; upgrade-insecure-requests;")
+  @Header('Powered-By', 'Shopify')
+  @Header('Shopify-Complexity-Score', '0')
   @Log({
     title: '购物车管理',
     businessType: BusinessTypeEnum.insert,
@@ -83,27 +97,39 @@ export class CartController {
     
     // 如果是新生成的 cart token，写入 cookie
     if (cart['_isNewToken']) {
-      // console.log('🍪 设置 cart cookie:', cart.token)
+      console.log('🍪 设置 cart cookie:', cart.token)
       
-      // // 根据请求来源动态设置 domain
-      // const host = request.headers.host || '';
-      // let cookieDomain = '';
+      // 根据请求来源动态设置 domain
+      const host = request.headers.host || '';
+      let cookieDomain = '';
       
-      // // 如果是生产环境 (.fifa.com)，设置 domain
-      // if (host.includes('fifa.com')) {
-      //   cookieDomain = '.fifa.com';
-      // }
-      // // 本地开发环境 (localhost) 不设置 domain，使用默认
+      // 如果是生产环境 (.fifa.com)，设置 domain
+      if (host.includes('fifa.com')) {
+        cookieDomain = '.fifa.com';
+      }
       
-      // const cookieValue = `cart=${encodeURIComponent(cart.token)}; Path=/; Max-Age=${14 * 24 * 60 * 60}; SameSite=Lax; HttpOnly=false${cookieDomain ? '; Domain=' + cookieDomain : ''}`;
+      // 设置 cart cookie（Shopify 格式）
+      const cartCookieValue = `cart=${encodeURIComponent(cart.token)}; Path=/; Max-Age=${14 * 24 * 60 * 60}; SameSite=Lax${cookieDomain ? '; Domain=' + cookieDomain : ''}`;
+      response.setHeader('Set-Cookie', cartCookieValue);
+      console.log('🍪 Set-Cookie header:', cartCookieValue);
       
-      // response.setHeader('Set-Cookie', cookieValue);
-      // console.log('🍪 Set-Cookie header:', cookieValue);
-      // console.log('🍪 Cookie domain:', cookieDomain || '(none, using default)');
+      // 设置 cart_currency cookie
+      const currencyCookieValue = 'cart_currency=USD; Path=/; Max-Age=' + (14 * 24 * 60 * 60) + '; SameSite=Lax' + (cookieDomain ? '; Domain=' + cookieDomain : '');
+      response.appendHeader('Set-Cookie', currencyCookieValue);
+      
+      // 设置 _shopify_y cookie（如果不存在）
+      const userId = await this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y');
+      if (!userId || userId.trim() === '') {
+        const shopifyYCookieValue = `_shopify_y=${cart.userId}; Path=/; Max-Age=${365 * 24 * 60 * 60}; SameSite=Lax${cookieDomain ? '; Domain=' + cookieDomain : ''}`;
+        response.appendHeader('Set-Cookie', shopifyYCookieValue);
+      }
       
       // 删除内部标记
       delete cart['_isNewToken'];
     }
+    
+    // 设置响应状态码为 200（Shopify 兼容）
+    response.status(200);
     
     return cart;
   }
