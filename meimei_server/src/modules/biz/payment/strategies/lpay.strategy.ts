@@ -12,6 +12,8 @@ import {
 } from '../interfaces/payment-strategy.interface';
 import * as crypto from 'crypto';
 
+ 
+
 /**
  * LPAY 聚合支付策略实现
  * 支持多种支付方式，通过统一接口进行支付
@@ -74,7 +76,11 @@ export class LPayStrategy implements PaymentStrategy {
    * 创建支付订单
    */
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
-    this.logger.log(`LPAY创建订单: ${params.orderNo}`);
+    this.logger.log(`LPAY创建订单: ${JSON.stringify(params)}`);
+    //转换成 BRL
+    const USD_TO_BRL_RATE = 5.0;
+    const brlAmount = params.amount * USD_TO_BRL_RATE;
+    this.logger.log(`LPAY 订单金额: ${params.amount} USD BRL Amount: ${brlAmount}`);
 
     try {
       // 构建请求参数

@@ -36,7 +36,7 @@ export class CheckoutTemplateService implements OnModuleInit {
      this.templatePathBr = path.join(
       process.cwd(),
       'scripts',
-      'payment_pt_br.html'
+      'payment_pt_br_01.html'
     )
     
     // 预加载模板到缓存
