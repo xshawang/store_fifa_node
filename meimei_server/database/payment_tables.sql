@@ -241,3 +241,24 @@ INSERT INTO `biz_payment_channel` (
   '{"timeout": 30, "retry_interval": 5}',
   'LPAY聚合支付通道，支持多种支付方式'
 );
+
+-- 插入支付通道配置（EY_PAY - EYPAY支付）
+INSERT INTO `biz_payment_channel` (
+  `channel_code`, `channel_name`, `channel_type`,
+  `platform_key`, `platform_secret`, `site_code`,
+  `api_base_url`, `api_version`, `notify_url`,
+  `supported_currencies`, `supported_methods`,
+  `min_amount`, `max_amount`, `fee_rate`,
+  `is_active`, `priority`, `sort_order`,
+  `config`, `remark`
+) VALUES (
+  'EY_PAY', 'EYPAY支付', 'PIX',
+  '23710e8678a74fc0b91f479d730eb3f9', '', '',
+  'https://api.eypays.com', 'v1', 'https://store.fif.com/api/payment/notify/eypay',
+  '["BRL"]',
+  '["PIX"]',
+  1.00, 999999.99, 0.0150,
+  1, 1, 1,
+  '{"timeout": 30, "retry_interval": 5, "allowed_ips": ["54.233.234.196","18.229.23.62","56.125.86.62","18.229.182.144","56.125.155.115"], "merchant_private_key": "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCKid0goeWZGpKc6o/UsJGYdgeRYX3bpUYE1WhJcX9ilwFEhXh2iXJmR+MCPe/WDE0ZrQokfY2gO4Cknj0+99e1fyXpS/LnJZAzAAG2elaxRXFnmQzPCL8+d15fRDviNEGhLUqfZNxj4rx4jOjNXDS60OtyU/Kqpe4k9CKbEXBfEinUNihPPcxJ+e5B/IDhMHTbr/ssnqaWU4Ku/dWIQJYfJOTW59XQhDYzKYTsBIQx8ZG0yVUTksYTXaCEI1uwukRXbmMIV4T7tlRuhcw4+bsBOT++6kBFCyxPf61NttPn5I4NoICeAbXmxqQXpFPG97Dk2OBAe2Fy5sUljjRlBikjAgMBAAECggEALhMTu9qcJYM054MLOs1OXspCUhN+bCJXWxwuht58YymdflB1c9baeTHHSeOXdDS7H6LxEJnBFF01t4n5DIwY7X/P9/sOWdmgT5Xc+/dMBcD2qmG4ZNKf6AKDHGPxFpYSjawmeURuF7o8vEsA0eusjcUVyPwqZJ6yyQ94wuHV4YgDsd6GtxK9VrAk6zDQVZBjn0kgQGNoPwckZCAWnPkiV8XdxgMxPy4JbjKjBDIGOUOS9byaI7ZM+G9wPOQN2wBenfbaDtPXjfQ8qaLEWmiO+AB35/zGgl/eM5oBIx7bZfxUOOSaoES1F2udnWHnR7/g/nNc48G5aeUdD3CCXPk4AQKBgQDx7zpBRqcPGqVw1UOOkBKvfdzOtVQBO2g4sGAuG4jaUMimPvnhRZZoZQZfYvbVAjrBO1MaKeUYXlSMdrUVooiBsmvsLG3xqa3tvAePiWzckRYKibK5IXS2kOM+tpPMCiu+8FbsAkUSmCVpJJZQDlwU+F4st41FwGjlpWwHM1QfAQKBgQCSl8SZTtr/aVWTO1Mw6iwWFXcYn0bJOFkjPmkY0xetU0R0M0jfU4vvZNoTpjdsDwqIM789fjo8659o8YVDG1Ks0WO3A/cH9BK0zgfeSXMbabUt35v9urKwVhNhI/x6BTBxp5cO18lalDNUTrh0RLchmsZlRlPC9FRaoajZpPHsIwKBgQDI+QoyeWeDY4Y1IeOZxNLQ10QaroSW9WuRU+rBwnu/p0XW3A+lc7ILDIjrqgETV2PJaueQn2bBBHNFr8Kjsz2kR7vhF9NI4cQq7Xx2XxmAbEGcBWDi6wjSM6+iQ/aok3ZdibcbHJOWa68AFbWL0THq9Zr9mIiRfdFlmzIPFTN3AQKBgGrOAuKEDpFKqJvF/H3GD+rjJsucuJFA6ckA3sfEfRq+cUCMYQq9r1XzT+RDFVw4tT65HRvrjPj330QxvBtBnAHn6VPdoq17yelLt3XgY+pUITpUEi5SSYCqpiH/eyNYBoy4QxoAZGcHVUKWvFOSAS+NugDttXd0VsVVxVUVlWGrAoGAJKa1hOBNege4MLLQI51brKcUfdpW/m4AyILDWVIm8KZDDkzJnZZYs2gcIxtVGI5acdEFkfh+qGNFyr+Aya1g6AcrI47nK1bb0V3wgKXBEZ/GqP1HNPnf2C0rlXUjp5KdNbhThLByfcDmL7Dz2veVPauDvfTANojON0RpXG2sFrY="}',
+  'EYPAY通道，支持巴西PIX支付，使用RSA签名验证'
+);

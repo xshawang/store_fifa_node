@@ -80,16 +80,15 @@ export class LPayStrategy implements PaymentStrategy {
     //转换成 BRL
     const USD_TO_BRL_RATE = 5.0;
     const brlAmount = params.amount * USD_TO_BRL_RATE;
+    
     this.logger.log(`LPAY 订单金额: ${params.amount} USD BRL Amount: ${brlAmount}`);
 
     try {
       // 构建请求参数
       const requestData: any = {
-        api_key: this.channelConfig.platformKey,
-        amount: params.amount,
-        code: this.channelConfig.siteCode, // 通道编码（从商户后台获取）
+        amount: brlAmount,
         merchant_order_no: params.orderNo,
-        notify_url: params.notifyUrl,
+        api_key: this.channelConfig.platformSecret,
       };
 
       // 生成签名
@@ -98,9 +97,12 @@ export class LPayStrategy implements PaymentStrategy {
       this.logger.debug(`LPAY请求参数: ${JSON.stringify(requestData)}`);
 
       // 调用API - 根据文档使用 /api/v2/pay/in 接口
-      const apiUrl = `${this.channelConfig.apiBaseUrl}/api/${this.channelConfig.apiVersion}/pay/in`;
+      const apiUrl = `${this.channelConfig.apiBaseUrl}/api/v2/pay/in`
+      const reqParams = { ...requestData, code: this.channelConfig.siteCode, notify_url: this.channelConfig.notifyUrl };
+      this.logger.debug(`LPAY请求参数: ${JSON.stringify(reqParams)}`)
+
       const response = await firstValueFrom(
-        this.httpService.post(apiUrl, requestData),
+        this.httpService.post(apiUrl, reqParams),
       );
 
       this.logger.debug(`LPAY响应数据: ${JSON.stringify(response.data)}`);
@@ -259,7 +261,7 @@ export class LPayStrategy implements PaymentStrategy {
     // 3. 拼接字符串：key=value&key=value&secret
     const signStr = sortedKeys
       .map((key) => `${key}=${filteredParams[key]}`)
-      .join('&') + `&${secret}`;
+      .join('&');
 
     this.logger.debug(`LPAY签名字符串: ${signStr}`);
 

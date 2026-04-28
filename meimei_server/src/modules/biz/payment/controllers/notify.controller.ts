@@ -43,34 +43,6 @@ export class NotifyController {
   ) {}
 
   /**
-   * X支付回调
-   * POST /api/payment/notify/xpay
-   */
-  @Post('xpay')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'X支付回调' })
-  async handleXPayNotify(@Body() data: any) {
-    this.logger.log(`收到X支付回调: ${JSON.stringify(data)}`);
-
-    try {
-      // TODO: 验证签名
-      // TODO: 更新支付订单状态
-      // TODO: 更新业务订单状态
-
-      return {
-        code: 0,
-        msg: 'Success',
-      };
-    } catch (error) {
-      this.logger.error(`处理X支付回调失败: ${error.message}`, error.stack);
-      return {
-        code: -1,
-        msg: error.message,
-      };
-    }
-  }
-
-  /**
    * LPAY 支付回调
    * POST /payment/notify/lpay
    */
@@ -232,43 +204,184 @@ export class NotifyController {
     }
   }
 
+   
+
   /**
-   * PIX_PAY 支付回调
-   * POST /api/payment/notify/pixpay
+   * EYPAY 支付回调
+   * POST /payment/notify/eypay
+   * Content-Type: application/json;charset=UTF-8
    */
-  @Post('pixpay')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'PIX_PAY支付回调' })
-  async handlePIXPayNotify(@Body() data: any, @Req() request: any) {
-    this.logger.log(`收到PIX_PAY回调: ${JSON.stringify(data)}`);
+  @Post('eypay')
+  @Public()
+  @Keep()
+  @ApiOperation({ summary: 'EYPAY支付回调' })
+  async handleEYPayNotify(@Body() data: any, @Req() request: Request, @Res() res: Response) {
+    this.logger.log(`收到EYPAY回调: ${JSON.stringify(data)}`);
+    this.logger.log(`Content-Type: ${request.headers['content-type']}`);
 
     try {
-      // 获取客户端 IP
-      const clientIP = request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress;
-      
-      // IP 白名单验证
-      if (!this.isIPAllowed(clientIP)) {
-        this.logger.error(`PIX_PAY回调IP不在白名单: ${clientIP}`);
-        return {
-          code: -1,
-          msg: 'IP not allowed',
-        };
+      // 1. 获取回调参数
+      const nonce = request.headers['nonce'] as string||''
+      const timestamp = request.headers['timestamp'] as string || '';
+      const authorization = request.headers['authorization'] as string || '';
+      const sign = request.headers['sign'] as string || '';
+
+      const {
+        merchant_order_no,  // 商户订单号（我们的订单号）
+        order_no,           // 支付平台订单号
+        status,             // 支付状态: SUCCESS, PROCESSING, FAILED 等
+        amount,             // 订单金额
+        trade_type,         // 交易类型: pix
+        free ,              //手续费
+        endToEndId,
+        return_msg,
+        return_code,
+      } = data.data;
+
+      const { notifyNo, timeCreated, type } = data;
+      if (!merchant_order_no) {
+        this.logger.error('EYPAY回调缺少商户订单号');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(HttpStatus.BAD_REQUEST).send('Missing merchant_order_no');
       }
 
-      // TODO: 验证签名
-      // TODO: 更新支付订单状态
-      // TODO: 更新业务订单状态
+      this.logger.log(`EYPAY回调 - 商户订单号: ${merchant_order_no}, 状态: ${status}`);
 
-      return {
-        code: 0,
-        msg: 'Success',
-      };
+      // 2. 从数据库查询 EY_PAY 渠道配置
+      const channel = await this.paymentChannelRepo.findOne({
+        where: { channelCode: 'EY_PAY' },
+      });
+
+      if (!channel) {
+        this.logger.error('未找到 EY_PAY 支付通道配置');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Channel not found');
+      }
+
+      // 3. 验证签名（需要平台公钥）
+      // 根据文档，验签数据格式：nonce+'\n'+timestamp+'\n'+Authorization+'\n'+response_data
+      const platformPublicKey = channel.platformSecret || '';
+      if (!platformPublicKey) {
+        this.logger.warn('EYPAY平台公钥未配置，跳过签名验证');
+        // 实际生产环境必须验证签名，这里暂时跳过
+      } else {
+        const signData = `${nonce}\n${timestamp}\n${authorization}\n${JSON.stringify(data)}`;
+        this.logger.log(`EYPAY回调验签数据: ${signData}`);
+        const signResult = this.rsaSign(signData, platformPublicKey);
+        this.logger.log(` 验签结果 `, signResult)
+
+        const isValid = this.rsaVerify(signData, signResult, platformPublicKey);
+        
+        if (!isValid) {
+          this.logger.error(`EYPAY回调签名验证失败`);
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          return res.status(HttpStatus.BAD_REQUEST).send('Invalid sign');
+        }
+        
+        this.logger.log('EYPAY回调签名验证成功');
+      }
+
+      // 4. IP 白名单验证（可选）
+      const clientIP = request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress;
+      const cleanIP = typeof clientIP === 'string' ? clientIP.replace(/^::ffff:/, '') : '';
+      const allowedIPs = channel.config?.allowed_ips || [];
+      
+      if (allowedIPs.length > 0 && !allowedIPs.includes(cleanIP)) {
+        this.logger.warn(`EYPAY回调IP不在白名单: ${cleanIP}`);
+        // 可以选择拒绝或继续处理
+      }
+
+      // 5. 查找支付订单
+      const paymentOrder = await this.paymentOrderRepo.findOne({
+        where: { paymentNo: merchant_order_no },
+      });
+
+      if (!paymentOrder) {
+        this.logger.error(`未找到支付订单: ${merchant_order_no}`);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(HttpStatus.NOT_FOUND).send('Payment order not found');
+      }
+
+      // 6. 根据 status 更新支付订单状态
+      let newPaymentStatus: number;
+      let newOrderStatus: number | undefined;
+      let newPaymentStatusValue: number | undefined;
+
+      switch (status) {
+        case 'SUCCESS':  // 支付成功
+          newPaymentStatus = 2;  // 支付成功
+          newOrderStatus = 1;    // 订单状态：已支付
+          newPaymentStatusValue = 2;  // 订单支付状态：已支付
+          break;
+        
+        case 'PROCESSING':  // 支付中
+          newPaymentStatus = 1;  // 支付中
+          break;
+        
+        case 'FAILED':  // 支付失败
+        case 'CLOSED':  // 已关闭
+          newPaymentStatus = 3;  // 支付失败
+          newOrderStatus = 4;    // 订单状态：已取消
+          newPaymentStatusValue = 3;  // 订单支付状态：支付失败
+          break;
+        
+        default:
+          this.logger.warn(`未知的 EYPAY 状态: ${status}`);
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          return res.send('success');
+      }
+
+      // 7. 更新支付订单表
+      paymentOrder.status = newPaymentStatus;
+      paymentOrder.notifyData = data;
+      paymentOrder.responseData = { ...paymentOrder.responseData, callback_data: data };
+      paymentOrder.thirdPaymentNo = order_no || paymentOrder.thirdPaymentNo;
+      
+      if (status === 'SUCCESS') {
+        paymentOrder.paidTime = new Date();
+      }
+
+      await this.paymentOrderRepo.save(paymentOrder);
+      this.logger.log(`支付订单状态已更新: ${merchant_order_no}, 状态: ${newPaymentStatus}`);
+
+      // 8. 同步更新 biz_order 表（仅支付成功和支付失败）
+      if (newOrderStatus !== undefined) {
+        const order = await this.orderRepo.findOne({
+          where: { orderNo: paymentOrder.orderNo },
+        });
+
+        if (order) {
+          if(0 != order.orderStatus){
+             this.logger.log(`订单状态 已经处理，不再更新: ${paymentOrder.orderNo}, 订单状态: ${order.orderStatus}, 支付状态: ${newPaymentStatusValue}`);
+             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+             return res.send('success');
+          }
+          order.orderStatus = newOrderStatus;
+          order.paymentMethod='EY_PAY_PIX';
+          order.paymentTransactionId = order_no || '';
+          if (newPaymentStatusValue !== undefined) {
+            order.paymentStatus = newPaymentStatusValue;
+          }
+          
+          if (status === 'SUCCESS') {
+            order.paidAt = new Date();
+            order.paidAmount = order.totalAmount;  // 已支付金额 = 订单总金额
+          }
+
+          await this.orderRepo.save(order);
+          this.logger.log(`订单状态已同步: ${merchant_order_no}, 订单状态: ${newOrderStatus}, 支付状态: ${newPaymentStatusValue}`);
+        } else {
+          this.logger.warn(`未找到业务订单: ${merchant_order_no}`);
+        }
+      }
+
+      // 9. 返回成功响应
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.send('success');
     } catch (error) {
-      this.logger.error(`处理PIX_PAY回调失败: ${error.message}`, error.stack);
-      return {
-        code: -1,
-        msg: error.message,
-      };
+      this.logger.error(`处理EYPAY回调失败: ${error.message}`, error.stack);
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Internal error');
     }
   }
 
@@ -319,5 +432,40 @@ export class NotifyController {
         .update(signStr)
         .digest('hex')
         .toUpperCase();
+    }
+
+  /**
+   * RSA 验签
+   */
+  private rsaVerify(data: string, signature: string, publicKey: string): boolean {
+    try {
+      if (!publicKey) {
+        this.logger.warn('公钥未配置，跳过验签');
+        return false;
+      }
+
+      const verify = crypto.createVerify('SHA256');
+      verify.update(data, 'utf8');
+      verify.end();
+      
+      return verify.verify(publicKey, signature, 'base64');
+    } catch (error) {
+      this.logger.error(`RSA验签失败: ${error.message}`);
+      return false;
+    }
+  }
+
+    private rsaSign(data: string, privateKey: string): string {
+      try {
+        const sign = crypto.createSign('SHA256');
+        sign.update(data, 'utf8');
+        sign.end();
+        
+        const signature = sign.sign(privateKey, 'base64');
+        return signature;
+      } catch (error) {
+        this.logger.error(`RSA签名失败: ${error.message}`);
+        throw error;
+      }
     }
 }

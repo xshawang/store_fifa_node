@@ -40,6 +40,8 @@ export class PaymentService {
    * 调用方只需提供基本支付信息，通道信息由本方法自动选择和附加
    */
   async createPayment(dto: CreatePaymentDto) {
+    //目前都是BRL支付
+    dto.currency = 'BRL';
     this.logger.log(`创建支付订单: ${dto.orderNo} ${dto.userId} ${dto.amount} ${dto.currency} ${dto.paymentMethod}`);
 
     // 1. 查询订单是否存在

@@ -159,24 +159,24 @@ export class PaymentController {
       }
       
       // 2. 保存收件信息到 biz_deliver 表
-      const deliverInfo = await this.paymentService.saveDeliverInfo({
-        orderNo: checkoutPayDto.v,
-        userId:  '',
-        recipientName: `${checkoutPayDto.firstName} ${checkoutPayDto.lastName}`,
-        recipientPhone: checkoutPayDto.phone||'',
-        recipientEmail: checkoutPayDto.email||'',
-        countryCode: checkoutPayDto.countryCode,
-        country: this.getCountryName(checkoutPayDto.countryCode),
-        province: '', // 可以从地址解析或前端传入
-        city: '', // 可以从地址解析或前端传入
-        address: `${checkoutPayDto.address1}${checkoutPayDto.address2 ? ', ' + checkoutPayDto.address2 : ''}`,
-        postalCode: checkoutPayDto.postalCode||'',
-        addressLine1: checkoutPayDto.address1||'',
-        addressLine2: checkoutPayDto.address2 || '',
-        remark: '',
-      });
+      // const deliverInfo = await this.paymentService.saveDeliverInfo({
+      //   orderNo: checkoutPayDto.v,
+      //   userId:  '',
+      //   recipientName: `${checkoutPayDto.firstName} ${checkoutPayDto.lastName}`,
+      //   recipientPhone: checkoutPayDto.phone||'',
+      //   recipientEmail: checkoutPayDto.email||'',
+      //   countryCode: checkoutPayDto.countryCode,
+      //   country: this.getCountryName(checkoutPayDto.countryCode),
+      //   province: '', // 可以从地址解析或前端传入
+      //   city: '', // 可以从地址解析或前端传入
+      //   address: `${checkoutPayDto.address1}${checkoutPayDto.address2 ? ', ' + checkoutPayDto.address2 : ''}`,
+      //   postalCode: checkoutPayDto.postalCode||'',
+      //   addressLine1: checkoutPayDto.address1||'',
+      //   addressLine2: checkoutPayDto.address2 || '',
+      //   remark: '',
+      // });
 
-      this.logger.log(`收件信息保存成功: ${deliverInfo.id}`);
+      // this.logger.log(`收件信息保存成功: ${deliverInfo.id}`);
 
       // 3. 查询订单信息
       const orderInfo = await this.paymentService.getOrderInfo(checkoutPayDto.v);
@@ -209,7 +209,7 @@ export class PaymentController {
       if(paymentResult && paymentResult.success){
         this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}  ${paymentResult.payUrl}  ${paymentResult.qrCode}  ${paymentResult.expireTime}`);
          // 5. 返回支付跳转链接（包含使用的通道信息）
-        return res.redirect(paymentResult.payUrl);
+        return res.redirect(paymentResult.qrCode);
       }
       else{
           this.logger.log(`支付订单创建失败: ${paymentResult.message}  orderNo: ${checkoutPayDto.v}`);
