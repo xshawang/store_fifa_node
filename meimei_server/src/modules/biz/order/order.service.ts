@@ -62,13 +62,12 @@ export class OrderService {
     })
  
 
-    // 3. 计算订单总金额（单位：分）
+    // 3. 计算订单总金额
     let subtotalAmount = 0
     const orderItems: Partial<OrderItem>[] = []
 
     for (const cartItem of cartItems) {
-      // 价格转换为分（假设 cartItem.price 是美元，需要转换为分）
-      const priceInCents = Math.round(cartItem.price * 100)
+      const priceInCents = cartItem.price
       const quantity = cartItem.quantity
       const itemSubtotal = priceInCents * quantity
 

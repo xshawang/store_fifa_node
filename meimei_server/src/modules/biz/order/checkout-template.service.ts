@@ -203,7 +203,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       let allProductsHTML = ''
       
       orderData.items.forEach((item: any, index: number) => {
-        const priceInDollars = (item.salePrice / 100).toFixed(2)
+        const priceInDollars = item.salePrice
         const imgSrc = item.productUrl     || ''
         const productName = item.productName || ''
          
@@ -285,7 +285,7 @@ export class CheckoutTemplateService implements OnModuleInit {
    */
   private replaceCostSummary(html: string, orderData: any, first: boolean): string {
     try {
-      const totalInDollars = (orderData.totalAmount / 100).toFixed(2)
+      const totalInDollars = orderData.totalAmount 
       const FLAG_BRL = orderData.currency == 'BRL'?true:false
       //直接用字符串截取替换第二个
       const substr= `_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate`
