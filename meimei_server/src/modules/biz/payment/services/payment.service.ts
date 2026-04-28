@@ -40,12 +40,16 @@ export class PaymentService {
    * 调用方只需提供基本支付信息，通道信息由本方法自动选择和附加
    */
   async createPayment(dto: CreatePaymentDto) {
-    this.logger.log(`创建支付订单: ${dto.orderNo}`);
+    this.logger.log(`创建支付订单: ${dto.orderNo} ${dto.userId} ${dto.amount} ${dto.currency} ${dto.paymentMethod}`);
 
     // 1. 查询订单是否存在
     const order = await this.getOrderInfo(dto.orderNo);
     if (!order) {
-      throw new Error(`订单不存在: ${dto.orderNo}`);
+      // throw new Error(`订单不存在: ${dto.orderNo}`);
+      return {
+          success: false,
+          message: `订单不存在: ${dto.orderNo}`,
+        };
     }
 
     // 2. 自动选择支付通道（根据支付方式和金额、货币）
@@ -56,7 +60,11 @@ export class PaymentService {
     );
 
     if (!channel) {
-      throw new Error(`没有找到合适的支付通道，支付方式: ${dto.paymentMethod}`);
+      //throw new Error(`没有找到合适的支付通道，支付方式: ${dto.paymentMethod}`);
+      return {
+          success: false,
+          message: `没有找到合适的支付通道，支付方式: ${dto.paymentMethod}`,
+        };
     }
 
     this.logger.log(`自动选择支付通道: ${channel.channelCode} - ${channel.channelName}`);
@@ -77,20 +85,44 @@ export class PaymentService {
 
     await this.paymentOrderRepo.save(paymentOrder);
 
-   // 4. 获取对应的支付策略
     const strategy = this.strategies.find(
       (s) => s.getChannelCode() === channel.channelCode,
     );
 
     
     if (!strategy) {
-      throw new Error(`支付策略未找到: ${channel.channelCode}`);
+      //throw new Error(`支付策略未找到: ${channel.channelCode}`);
+       return {
+          success: false,
+          message: `支付策略未找到: ${channel.channelCode}`,
+        };
+      
     }
 
-    // 5. 调用第三方支付API（自动使用通道的notifyUrl）
+    strategy.setChannelConfig({
+      channelCode: channel.channelCode,
+      channelName: channel.channelName,
+      channelType: channel.channelType,
+      platformKey: channel.platformKey,
+      platformSecret: channel.platformSecret,
+      siteCode: channel.siteCode,
+      apiBaseUrl: channel.apiBaseUrl,
+      apiVersion: channel.apiVersion,
+      notifyUrl: channel.notifyUrl,
+      supportedCurrencies: channel.supportedCurrencies,
+      supportedMethods: channel.supportedMethods,
+      minAmount: channel.minAmount,
+      maxAmount: channel.maxAmount,
+      feeRate: channel.feeRate,
+      isActive: channel.isActive,
+      priority: channel.priority,
+      sortOrder: channel.sortOrder,
+    });
+    // 5. 调用第三方支付API（自动使用通道的
+   // 4. 获取对应的支付策略notifyUrl）
     try {
       const result = await strategy.createPayment({
-        orderNo: dto.orderNo,
+        orderNo: paymentOrder.paymentNo,//不使用订单编号，而是使用支付订单编号
         amount: dto.amount,
         currency: dto.currency,
         paymentMethod: dto.paymentMethod,
@@ -102,7 +134,7 @@ export class PaymentService {
         cardHolderName: dto.cardHolderName,
         // 传递 PIX 支付信息（如果有）
         cpf: dto.cpf,
-        email: dto.email,
+        email: dto.email 
       });
 
       if (result.success) {
@@ -131,7 +163,11 @@ export class PaymentService {
         paymentOrder.errorMsg = result.errorMsg;
         await this.paymentOrderRepo.save(paymentOrder);
 
-        throw new Error(`创建支付失败: ${result.errorMsg}`);
+        //throw new Error(`创建支付失败: ${result.errorMsg}`);
+        return {
+          success: false,
+          message: result.errorMsg,
+        };
       }
     } catch (error) {
       this.logger.error(`创建支付异常: ${error.message}`, error.stack);
@@ -141,7 +177,10 @@ export class PaymentService {
       paymentOrder.errorMsg = error.message;
       await this.paymentOrderRepo.save(paymentOrder);
 
-      throw error;
+       return {
+          success: false,
+          message: error.message,
+        };
     }
   }
 
@@ -250,23 +289,49 @@ export class PaymentService {
 
     if (existing) {
       // 更新
-      existing.recipientName = data.recipientName;
-      existing.recipientPhone = data.recipientPhone;
-      existing.recipientEmail = data.recipientEmail;
-      existing.countryCode = data.countryCode;
-      existing.country = data.country;
-      existing.province = data.province;
-      existing.city = data.city;
-      existing.address = data.address;
-      existing.postalCode = data.postalCode;
-      existing.addressLine1 = data.addressLine1;
-      existing.addressLine2 = data.addressLine2;
-      existing.remark = data.remark;
+      if(data.recipientName !== undefined && data.recipientName !== null && data.recipientName.length > 2){
+        existing.recipientName = data.recipientName;
+      }
+      if(data.recipientPhone !== undefined && data.recipientPhone !== null && data.recipientPhone.length > 2){
+        existing.recipientPhone = data.recipientPhone;
+      }
+      if(data.countryCode !== undefined && data.countryCode !== null && data.countryCode.length > 2){
+        existing.countryCode = data.countryCode;
+      }
+      if(data.country !== undefined && data.country !== null && data.country.length > 2){
+        existing.country = data.country;
+      }
+      if(data.province !== undefined && data.province !== null && data.province.length > 2){
+        existing.province = data.province;
+      }
+      if(data.city !== undefined && data.city !== null && data.city.length > 2){
+        existing.city = data.city;
+      }
+      if(data.addressLine1 !== undefined && data.addressLine1 !== null && data.addressLine1.length > 2){
+        existing.addressLine1 = data.addressLine1;
+      }
+      if(data.addressLine2 !== undefined && data.addressLine2 !== null && data.addressLine2.length > 2){
+        existing.addressLine2 = data.addressLine2;
+      }
+      if(data.postalCode !== undefined && data.postalCode !== null && data.postalCode.length > 2){
+        existing.postalCode = data.postalCode;
+      }
+      if(data.addressLine1 !== undefined && data.addressLine1 !== null && data.addressLine1.length > 2){
+        existing.addressLine1 = data.addressLine1;
+      }
+      if(data.remark !== undefined && data.remark !== null && data.remark.length > 20){
+        existing.remark = data.remark;
+      }
+      if(data.addressLine2 !== undefined && data.addressLine2 !== null && data.addressLine2.length > 2){
+        existing.addressLine2 = data.addressLine2;
+      }
+      if(data.address !== undefined && data.address !== null && data.address.length > 2){
+        existing.address = data.address;
+      }
       if(data.remark !== undefined && data.remark !== null && data.remark.length > 20){
         existing.remark = data.remark;
       }
       existing.updatedAt = new Date();
-
       return await this.deliverRepo.save(existing);
     } else {
       // 创建

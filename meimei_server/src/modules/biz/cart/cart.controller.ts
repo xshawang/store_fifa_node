@@ -30,7 +30,6 @@ export class CartController {
   // @RepeatSubmit()
   @Post(['/cart/add','/pt/cart/add'])
   @Public()
-  @Keep()
   @Log({
     title: '购物车管理',
     businessType: BusinessTypeEnum.insert,

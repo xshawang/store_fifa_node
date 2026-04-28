@@ -14,6 +14,8 @@ export interface PaymentStrategy {
    */
   getChannelType(): string;
 
+  setChannelConfig(channelConfig: ChannelConfig): void;
+  
   /**
    * 创建支付订单
    * @param params 支付参数

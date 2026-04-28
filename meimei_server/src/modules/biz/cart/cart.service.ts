@@ -200,11 +200,11 @@ export class CartService {
       original_price: productPrice,
       presentment_price: product.price,
       price: productPrice,
-      product_description: product.description,
+      product_description: product.description||'',
       product_has_only_default_variant: false,
       product_id: product.productId,
       product_title: product.productName,
-      product_type: product.productType,
+      product_type: product.productType||'',
       properties: {},
       quantity: createCartDto.quantity,
       requires_shipping: true,
@@ -218,7 +218,9 @@ export class CartService {
       variant_id: createCartDto.id,
       variant_title: createCartDto.size1,
       variant_options: [createCartDto.size1],
-      vendor: product.brand||''
+      vendor: product.brand||'',
+      line_level_discount_allocations:[],
+      image:product.productUrl
     }
     
     // 如果是新生成的 token，添加到返回结果中
@@ -535,11 +537,15 @@ export class CartService {
    */
   async clearUserCart(cookieHeader: string): Promise<void> {
     const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+    const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+    if (!token) {
+      throw new ApiException('无法识别购物车信息')
+    }
     if (!userId) {
       throw new ApiException('无法识别用户信息')
     }
     await this.cartRepository.update(
-      { userId, status: 1 },
+      { userId,token, status: 1 },
       { status: 0 }
     )
   }

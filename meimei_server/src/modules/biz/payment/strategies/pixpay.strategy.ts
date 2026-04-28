@@ -19,7 +19,7 @@ import * as crypto from 'crypto';
 @Injectable()
 export class PIXPayStrategy implements PaymentStrategy {
   private readonly logger = new Logger(PIXPayStrategy.name);
-  private readonly channelConfig: ChannelConfig;
+  private   channelConfig: ChannelConfig;
 
   // 回调 IP 白名单
   private readonly allowedCallbackIPs = [
@@ -53,6 +53,9 @@ export class PIXPayStrategy implements PaymentStrategy {
     };
   }
 
+  setChannelConfig(channelConfig: ChannelConfig) {
+    this.channelConfig = channelConfig;
+  } 
   getChannelCode(): string {
     return this.channelConfig.channelCode;
   }

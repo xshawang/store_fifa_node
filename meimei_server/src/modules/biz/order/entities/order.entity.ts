@@ -136,5 +136,11 @@ export class Order extends BaseEntity {
   @ApiProperty({ description: '是否删除：0-否 1-是' })
   @Column({ name: 'is_deleted', comment: '是否删除：0-否 1-是', default: 0 })
   isDeleted: number
+
+  @ApiProperty({ description: '支付交易ID' })
+  @Column({ name: 'payment_transaction_id', comment: '支付交易ID', length: 100, nullable: true })
+  paymentTransactionId: string
+
+
 }
 

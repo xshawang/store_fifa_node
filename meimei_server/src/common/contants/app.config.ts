@@ -5,7 +5,8 @@
 
 export const AppConfig = {
   // ==================== 域名配置 ====================
-  
+  // 美元转雷亚尔汇率
+  USD_TO_BRL_RATE:5,
   // 主站域名
   MAIN_DOMAIN: 'store.fif.com',
   MAIN_DOMAIN_HTTPS: 'https://store.fif.com',

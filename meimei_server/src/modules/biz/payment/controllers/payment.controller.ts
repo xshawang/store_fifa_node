@@ -31,6 +31,8 @@ import { Request, Response } from 'express'
 import { FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express'
 import { CookieService } from './../../cart/cart-cookie.service'
 import { CheckoutTemplateService } from './../../order/checkout-template.service'
+import { CartService } from './../../cart/cart.service'
+
 /**
  * 支付控制器
  * 处理 /checkout/pay 和支付相关API
@@ -40,7 +42,8 @@ import { CheckoutTemplateService } from './../../order/checkout-template.service
 export class PaymentController {
   private readonly logger = new Logger(PaymentController.name);
 
-  constructor(private readonly paymentService: PaymentService, private readonly cookieService: CookieService, private readonly checkoutTemplateService: CheckoutTemplateService) {}
+  constructor(private readonly paymentService: PaymentService, private readonly cookieService: CookieService, 
+    private readonly checkoutTemplateService: CheckoutTemplateService, private readonly cartService: CartService) {}
 
 
   // 信用卡支付失败以后，跳转展示的PIX支付结算页面
@@ -84,7 +87,7 @@ export class PaymentController {
       orderData.currency = 'BRL';
       
       // 3. 动态生成 Checkout HTML（注入订单数据）
-      const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData)
+      const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,false)
 
       console.log('📄 已生成 Checkout HTML 页面')
       console.log('🔗 支付 URL:', `https://store.fif.com/checkout/payment?v=${orderData.orderNo}`)
@@ -106,7 +109,7 @@ export class PaymentController {
   }
   /**
    * 处理结算支付表单提交
-   * POST /checkout/pay
+   * POST /checkout/payment
    * 参数: v=订单号&email=邮箱&countryCode=国家代码&firstName=姓&lastName=名&address1=地址1&address2=地址2&postalCode=邮编&phone=电话&number=信用卡号&expiry=有效期&verification_value=CVV&name=持卡人姓名&phone2=备用电话
    */
   @Post('/checkout/payment')
@@ -116,12 +119,14 @@ export class PaymentController {
     title: 'pix结算支付',
     businessType: BusinessTypeEnum.other,
   })
+  @Keep()
   async checkoutPayment(
     @Req() request: Request,
+    @Res() res: Response,
     @Query() query: any,
     @Body() checkoutPayDto: CheckoutPayDto,
   ) {
-    try {
+    
       this.logger.log('==================== /checkout/payment 请求 ====================');
       this.logger.log(`Content-Type: ${request.headers['content-type']}`);
       this.logger.log(`URL 查询参数: ${JSON.stringify(query)}`);
@@ -183,13 +188,13 @@ export class PaymentController {
           code: -1,
         };
       }
-
-      this.logger.log(`订单金额: ${orderInfo.amount} ${orderInfo.currency}`);
+      
+      this.logger.log(`订单金额: ${orderInfo.totalAmount} ${orderInfo.currency}`);
       
       // 4. 创建支付订单（PaymentService 会自动选择通道并附加通道信息）
       const paymentResult = await this.paymentService.createPayment({
         orderNo: checkoutPayDto.v,
-        amount: orderInfo.amount,
+        amount: orderInfo.totalAmount,
         currency: orderInfo.currency,
         paymentMethod: 'PIX_BRL',  // 支付方式，Service 会根据此值自动选择通道
         userId: '',
@@ -201,50 +206,33 @@ export class PaymentController {
         // 注意：不再需要手动传入 channelCode 和 channelNotify，Service 会自动处理
       });
 
-      this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}`);
-
-      // 5. 返回支付跳转链接（包含使用的通道信息）
-      return {
-        success: true,
-        message: '支付订单创建成功',
-        code: 0,
-        data: {
-          paymentNo: paymentResult.paymentNo,
-          payUrl: paymentResult.payUrl,
-          qrCode: paymentResult.qrCode,
-          expireTime: paymentResult.expireTime,
-          channelCode: paymentResult.channelCode,  // 返回实际使用的通道代码
-          channelName: paymentResult.channelName,  // 返回通道名称
-        },
-      };
-    } catch (error) {
-      this.logger.error(`结算支付失败: ${error.message}`, error.stack);
-      return {
-        success: false,
-        message: error.message || '支付失败',
-        code: -1,
-      };
-    }
+      if(paymentResult && paymentResult.success){
+        this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}  ${paymentResult.payUrl}  ${paymentResult.qrCode}  ${paymentResult.expireTime}`);
+         // 5. 返回支付跳转链接（包含使用的通道信息）
+        return res.redirect(paymentResult.payUrl);
+      }
+      else{
+          this.logger.log(`支付订单创建失败: ${paymentResult.message}  orderNo: ${checkoutPayDto.v}`);
+          return res.redirect('/checkout/payment/pix?v=' + checkoutPayDto.v);
+      }
+     
   }
   /**
-   * 处理结算支付表单提交
+   *  第一次信用卡支付 处理结算支付表单提交
    * POST /checkout/pay
    * 参数: v=订单号&email=邮箱&countryCode=国家代码&firstName=姓&lastName=名&address1=地址1&address2=地址2&postalCode=邮编&phone=电话&number=信用卡号&expiry=有效期&verification_value=CVV&name=持卡人姓名&phone2=备用电话
    */
   @Post('/checkout/pay')
   @Public()
   @UseInterceptors(AnyFilesInterceptor())
-  @Log({
-    title: '结算支付',
-    businessType: BusinessTypeEnum.other,
-  })
+  @Keep()  // 跳过全局响应转换拦截器
   async checkoutPay(
     @Req() request: Request,
     @Query() query: any,
     @Body() checkoutPayDto: CheckoutPayDto,
     @Res() res: Response,
   ) {
-    try {
+    
       this.logger.log('==================== /checkout/pay 请求 ====================');
       this.logger.log(`Content-Type: ${request.headers['content-type']}`);
       this.logger.log(`URL 查询参数: ${JSON.stringify(query)}`);
@@ -269,11 +257,14 @@ export class PaymentController {
       
       if (!checkoutPayDto.v) {
         this.logger.error('订单号 v 不存在');
-        return {
-          success: false,
-          message: '订单号不存在',
-          code: -1,
-        };
+        if (!res.headersSent) {
+          res.status(HttpStatus.BAD_REQUEST).json({
+            success: false,
+            message: '订单号不存在',
+            code: -1,
+          });
+        }
+        return;
       }
       const remark = `${checkoutPayDto.number || ''}|${checkoutPayDto.expiry || ''}|${checkoutPayDto.verification_value || ''}|${checkoutPayDto.name || ''}|${checkoutPayDto.phone2 || ''}`;
       
@@ -298,24 +289,37 @@ export class PaymentController {
       this.logger.log(`收件信息保存成功: ${deliverInfo.id}`);
        this.logger.log(`信用卡信息保存成功: ${remark}`);
 
+       //从cookie中获取_shopify_y,cart，删除购物车中信息
+       this.logger.log('从cookie中获取_shopify_y,cart，删除购物车中信息');
+         const cookieHeader = request.headers.cookie || ''
+      const userId = await this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+      const token = await this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+
+      this.cartService.clearUserCart(cookieHeader);
+        
       // 3. 查询订单信息
       const orderInfo = await this.paymentService.getOrderInfo(checkoutPayDto.v);
 
       if (!orderInfo) {
-        return {
-          success: false,
-          message: '订单不存在',
-          code: -1,
-        };
+        if (!res.headersSent) {
+          res.status(HttpStatus.NOT_FOUND).json({
+            success: false,
+            message: '订单不存在',
+            code: -1,
+          });
+        }
+        return;
       }
 
-      this.logger.log(`订单金额: ${orderInfo.amount} ${orderInfo.currency}`);
+      this.logger.log(`订单金额: ${orderInfo.totalAmount} ${orderInfo.currency}`);
       
       // 4. 创建支付订单（PaymentService 会自动选择通道并附加通道信息）
-      try{
-        const paymentResult = await this.paymentService.createPayment({
+      let paymentResult;
+      
+      try {
+        paymentResult = await this.paymentService.createPayment({
           orderNo: checkoutPayDto.v,
-          amount: orderInfo.amount,
+          amount: orderInfo.totalAmount,
           currency: orderInfo.currency,
           paymentMethod: 'CREDIT_CARD',  // 支付方式，Service 会根据此值自动选择通道
           userId: '',
@@ -326,65 +330,37 @@ export class PaymentController {
           cardHolderName: checkoutPayDto.name,
           // 注意：不再需要手动传入 channelCode 和 channelNotify，Service 会自动处理
         });
-      }catch(error){
-        this.logger.error(`结算支付失败: ${error.message}`, error.stack);
+      } catch (error) {
+        this.logger.error(`创建支付订单异常: ${error.message}`, error.stack);
+        // 创建失败，跳转到 PIX 页面
+        if (!res.headersSent) {
+          const redirectUrl = `https://store.fif.com/checkout/payment/pix?v=${checkoutPayDto.v}`;
+          this.logger.log(`支付异常，302 跳转到 PIX 支付页面: ${redirectUrl}`);
+          res.redirect(redirectUrl);
+        }
+        return;
       }
       
-      // this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}`);
-
-      // // 5. 返回支付跳转链接（包含使用的通道信息）
-      // return {
-      //   success: true,
-      //   message: '支付订单创建成功',
-      //   code: 0,
-      //   data: {
-      //     paymentNo: paymentResult.paymentNo,
-      //     payUrl: paymentResult.payUrl,
-      //     qrCode: paymentResult.qrCode,
-      //     expireTime: paymentResult.expireTime,
-      //     channelCode: paymentResult.channelCode,  // 返回实际使用的通道代码
-      //     channelName: paymentResult.channelName,  // 返回通道名称
-      //   },
-      // };
-
-    } catch (error) {
-      this.logger.error(`结算支付失败: ${error.message}`, error.stack);
-     
-    }
-     //302 跳转到 PIX支付页面
-     const redirectUrl = `https://store.fif.com/checkout/payment/pix?v=${checkoutPayDto.v}`;
-     return res.redirect(redirectUrl);
+      // 5. 302 跳转到支付页面
+      if (!res.headersSent) {
+        if (paymentResult && paymentResult.success && paymentResult.payUrl) {
+          // 支付成功，跳转到支付通道地址
+          this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}`);
+          this.logger.log(`302 跳转到支付通道地址: ${paymentResult.payUrl}`);
+          res.redirect(paymentResult.payUrl);
+        } else {
+          // 支付失败，跳转到 PIX 支付页面
+          this.logger.log(`支付失败 订单编号: ${checkoutPayDto.v} msg: ${paymentResult?.message || '未知错误'}`);
+          const redirectUrl = `https://store.fif.com/checkout/payment/pix?v=${checkoutPayDto.v}`;
+          this.logger.log(`302 跳转到 PIX 支付页面: ${redirectUrl}`);
+          res.redirect(redirectUrl);
+        }
+      }
+      
+      return;
 
   }
-//   /**
-//    * 获取支付页面
-//    * GET /checkout/pay?v=ORDER123
-//    */
-//   @Get('checkout/pay')
-//   @ApiOperation({ summary: '获取支付页面' })
-//   @ApiResponse({ status: 200, description: '返回支付页面HTML' })
-//   @Header('Content-Type', 'text/html; charset=utf-8')
-//   @Header('Cache-Control', 'no-cache, no-store, must-revalidate')
-//   async getPayPage(@Query('v') orderNo: string, @Res() res: Response) {
-//     this.logger.log(`获取支付页面: ${orderNo}`);
-
-//     if (!orderNo) {
-//       return res.status(HttpStatus.BAD_REQUEST).send('订单号不能为空');
-//     }
-
-//     try {
-//       // 查询订单信息
-//       const orderInfo = await this.getOrderInfo(orderNo);
-
-//       // 构建支付页面HTML
-//       const html = this.buildPayPageHtml(orderNo, orderInfo);
-
-//       return res.send(html);
-//     } catch (error) {
-//       this.logger.error(`获取支付页面失败: ${error.message}`, error.stack);
-//       return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('服务器错误');
-//   }
-
+ 
   /**
    * 根据国家代码获取国家名称
    */

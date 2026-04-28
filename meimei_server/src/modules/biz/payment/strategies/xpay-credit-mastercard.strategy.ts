@@ -18,8 +18,9 @@ import * as crypto from 'crypto';
  */
 @Injectable()
 export class XPayCreditMastercardStrategy implements PaymentStrategy {
+ 
   private readonly logger = new Logger(XPayCreditMastercardStrategy.name);
-  private readonly channelConfig: ChannelConfig;
+  private   channelConfig: ChannelConfig;
 
   constructor(private readonly httpService: HttpService) {
     // Mastercard 专用配置
@@ -43,7 +44,9 @@ export class XPayCreditMastercardStrategy implements PaymentStrategy {
       sortOrder: 2,
     };
   }
-
+  setChannelConfig(channelConfig: ChannelConfig) {
+    this.channelConfig = channelConfig;
+  }
   getChannelCode(): string {
     return this.channelConfig.channelCode;
   }

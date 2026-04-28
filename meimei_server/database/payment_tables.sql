@@ -220,3 +220,24 @@ INSERT INTO `biz_payment_channel` (
   '{"timeout": 30, "retry_interval": 5, "allowed_ips": ["54.233.234.196","18.229.23.62","56.125.86.62","18.229.182.144","56.125.155.115"]}',
   'PIX_PAY通道，支持巴西PIX即时支付，货币BRL'
 );
+
+-- 插入支付通道配置（L_PAY - LPAY聚合支付）
+INSERT INTO `biz_payment_channel` (
+  `channel_code`, `channel_name`, `channel_type`,
+  `platform_key`, `platform_secret`, `site_code`,
+  `api_base_url`, `api_version`, `notify_url`,
+  `supported_currencies`, `supported_methods`,
+  `min_amount`, `max_amount`, `fee_rate`,
+  `is_active`, `priority`, `sort_order`,
+  `config`, `remark`
+) VALUES (
+  'L_PAY', 'LPAY聚合支付', 'AGGREGATE',
+  'test123', '123456', 'TESTSITE001',
+  'https://api.lpay.com', 'v2', 'https://store.fif.com/api/payment/notify/lpay',
+  '["USD", "BRL", "EUR", "GBP", "CNY"]',
+  '["ALIPAY", "WECHAT", "CREDIT_CARD", "PIX", "QRIS"]',
+  1.00, 999999.99, 0.0200,
+  1, 1, 1,
+  '{"timeout": 30, "retry_interval": 5}',
+  'LPAY聚合支付通道，支持多种支付方式'
+);

@@ -18,10 +18,10 @@ import * as crypto from 'crypto';
 @Injectable()
 export class XPayStrategy implements PaymentStrategy {
   private readonly logger = new Logger(XPayStrategy.name);
-  private readonly channelConfig: ChannelConfig;
+  private   channelConfig: ChannelConfig;
 
   constructor(private readonly httpService: HttpService) {
-    // 从数据库或配置加载通道配置
+    // // 从数据库或配置加载通道配置
     this.channelConfig = {
       channelCode: 'X_PAY_CREDIT',
       channelName: 'X支付-信用卡',
@@ -43,6 +43,9 @@ export class XPayStrategy implements PaymentStrategy {
     };
   }
 
+  setChannelConfig(channelConfig: ChannelConfig) {
+    this.channelConfig = channelConfig;
+  }
   getChannelCode(): string {
     return this.channelConfig.channelCode;
   }

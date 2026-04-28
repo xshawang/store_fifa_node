@@ -67,14 +67,16 @@ export class CheckoutTemplateService implements OnModuleInit {
       productImage: string
       productUrl: string
     }>
-  }): Promise<string> {
+  }, first: boolean): Promise<string> {
       let html = this.templateCache
-    if(orderData.currency === 'BRL') {
+    if(!first) {
       if (!this.templateCacheBr) {
         throw new Error('模板未加载,请检查模板文件是否存在')
       }
-      let html = this.templateCacheBr
+      html = this.templateCacheBr
+      this.logger.log(`✅ 使用 Checkout 模板: payment_pt_br`)
     }else {
+      this.logger.log(`✅ 使用 Checkout 模板: payment_pt`)
       if (!this.templateCache) {
         throw new Error('模板未加载,请检查模板文件是否存在')
       }
@@ -94,10 +96,9 @@ export class CheckoutTemplateService implements OnModuleInit {
     html = this.replaceProductRowGroup(html, orderData)
   
     // 5. 替换费用摘要区域
-    html = this.replaceCostSummary(html, orderData)
+    html = this.replaceCostSummary(html, orderData, first)
   
     this.logger.log(`✅ 已生成 Checkout HTML,订单号: ${orderData.orderNo}`)
-      
     return html
   }
 
@@ -282,7 +283,7 @@ export class CheckoutTemplateService implements OnModuleInit {
   /**
    * 替换费用摘要区域
    */
-  private replaceCostSummary(html: string, orderData: any): string {
+  private replaceCostSummary(html: string, orderData: any, first: boolean): string {
     try {
       const totalInDollars = (orderData.totalAmount / 100).toFixed(2)
       const FLAG_BRL = orderData.currency == 'BRL'?true:false
@@ -346,8 +347,8 @@ export class CheckoutTemplateService implements OnModuleInit {
       // }
       //直接替换
       const replaceStr = "checkout/pay";
-      if(FLAG_BRL){
-        html = html.replaceAll(replaceStr, "/checkout/payment?v=" + orderData.orderNo);
+      if(!first){
+        html = html.replaceAll(replaceStr, "checkout/payment?v=" + orderData.orderNo);
       } else{
         html = html.replaceAll(replaceStr, "checkout/pay?v=" + orderData.orderNo);
       }

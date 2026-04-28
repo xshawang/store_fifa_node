@@ -10,6 +10,7 @@ import { PaymentService } from './services/payment.service';
 import { XPayStrategy } from './strategies/xpay.strategy';
 import { XPayCreditMastercardStrategy } from './strategies/xpay-credit-mastercard.strategy';
 import { PIXPayStrategy } from './strategies/pixpay.strategy';
+import { LPayStrategy } from './strategies/lpay.strategy';
 import { PaymentController } from './controllers/payment.controller';
 import { NotifyController } from './controllers/notify.controller';
 import { PaymentStrategy } from './interfaces/payment-strategy.interface';
@@ -44,13 +45,14 @@ import { OrderModule } from '../order/order.module';
     XPayStrategy,
     XPayCreditMastercardStrategy,  // 注册 Mastercard 策略
     PIXPayStrategy,  // 注册 PIX 支付策略
+    LPayStrategy,  // 注册 LPAY 聚合支付策略
     // 注册支付策略数组，注入到 PaymentService
     {
       provide: 'PAYMENT_STRATEGIES',  // 使用字符串token
-      useFactory: (xpayStrategy: XPayStrategy, mastercardStrategy: XPayCreditMastercardStrategy, pixpayStrategy: PIXPayStrategy) => {
-        return [xpayStrategy, mastercardStrategy, pixpayStrategy];  // 返回所有策略数组
+      useFactory: (xpayStrategy: XPayStrategy, mastercardStrategy: XPayCreditMastercardStrategy, pixpayStrategy: PIXPayStrategy, lpayStrategy: LPayStrategy) => {
+        return [xpayStrategy, mastercardStrategy, pixpayStrategy, lpayStrategy];  // 返回所有策略数组
       },
-      inject: [XPayStrategy, XPayCreditMastercardStrategy, PIXPayStrategy],
+      inject: [XPayStrategy, XPayCreditMastercardStrategy, PIXPayStrategy, LPayStrategy],
     },
   ],
   exports: [PaymentService],
