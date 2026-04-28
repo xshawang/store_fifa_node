@@ -88,7 +88,7 @@ export class LPayStrategy implements PaymentStrategy {
       const requestData: any = {
         amount: brlAmount,
         merchant_order_no: params.orderNo,
-        api_key: this.channelConfig.platformSecret,
+        api_key: this.channelConfig.platformKey,
       };
 
       // 生成签名
@@ -261,8 +261,7 @@ export class LPayStrategy implements PaymentStrategy {
     // 3. 拼接字符串：key=value&key=value&secret
     const signStr = sortedKeys
       .map((key) => `${key}=${filteredParams[key]}`)
-      .join('&');
-
+      .join('&') + `&${secret}`;
     this.logger.debug(`LPAY签名字符串: ${signStr}`);
 
     // 4. MD5加密并转大写
