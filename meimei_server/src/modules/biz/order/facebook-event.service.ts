@@ -29,10 +29,11 @@ export class FacebookEventService {
     },
     ipAddress: string,
     userAgent: string,
+    host: string,
   ): Promise<void> {
     try {
       // 异步执行，不阻塞主流程
-      this.pushEventToFacebook(orderData, ipAddress, userAgent).catch((error) => {
+      this.pushEventToFacebook(orderData, ipAddress, userAgent,host).catch((error) => {
         this.logger.error('发送 Facebook 事件失败:', error)
       })
     } catch (error) {
@@ -56,6 +57,7 @@ export class FacebookEventService {
     },
     ipAddress: string,
     userAgent: string,
+    host:string
   ): Promise<void> {
     const url = `https://graph.facebook.com/v19.0/${this.PIXEL_ID}/events?access_token=${this.ACCESS_TOKEN}`
 
@@ -70,7 +72,7 @@ export class FacebookEventService {
           // 使用当前 UTC 时间戳（秒）
           event_time: Math.floor(Date.now() / 1000),
           action_source: 'website',
-          event_source_url: `/checkout?v=${orderData.orderNo}`,
+          event_source_url: host+`/checkout?v=${orderData.orderNo}`,
           user_data: {
             client_ip_address: ipAddress || '',
             client_user_agent: userAgent || '',

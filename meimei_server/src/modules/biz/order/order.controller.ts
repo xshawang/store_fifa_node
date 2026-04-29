@@ -43,6 +43,7 @@ export class OrderController {
     console.log('checkoutPayDto:', JSON.stringify(checkoutPayDto, null, 2))
     console.log('Cookie:', request.headers.cookie)
     console.log('IP:', request.ip)
+    console.log('Host:', request.get('host'))
     console.log('==========================================================')
 
     try {
@@ -90,6 +91,8 @@ export class OrderController {
         },
         ipAddress,
         userAgent,
+        request.get('host'),
+        
       )
 
       // 5. 动态生成 Checkout HTML（注入订单数据）
