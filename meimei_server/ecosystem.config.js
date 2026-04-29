@@ -13,15 +13,20 @@ module.exports = {
       out_file: './logs/app.log',
       merge_logs: true,
       date_format: 'YYYY-MM-DD HH:mm:ss',
+      
+      // 指定环境变量文件（生产环境）
+      env_file: '.env.production',
 
-      // 生产环境
-      env_production: {
-        name: 'meimei_server',
+      // 默认使用生产环境配置
+      env: {
+        name: 'meimei_server_3000',
         NODE_ENV: 'production',
         APP_ENV: 'production',
         PORT: '3000',
         TZ: 'America/Sao_Paulo',
       },
+
+       
     },
   ],
 }
