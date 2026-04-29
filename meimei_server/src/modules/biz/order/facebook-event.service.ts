@@ -62,6 +62,7 @@ export class FacebookEventService {
     // 将金额从分转换为元（如果是以分为单位）
     const valueInDollars = orderData.totalAmount
 
+    this.logger.log('发送 Facebook 事件 - 订单号:',  orderData.orderNo)
     const eventData = {
       data: [
         {
@@ -85,7 +86,7 @@ export class FacebookEventService {
         },
       ],
     }
-
+    this.logger.log(url,'发送 Facebook 事件 - 事件数据:', JSON.stringify(eventData))
     try {
       const response = await axios.post(url, eventData)
       this.logger.log(
