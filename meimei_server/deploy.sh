@@ -23,6 +23,9 @@ CONFIG_FILE="ecosystem.config.js"
 # 切换到脚本所在目录
 cd "$(dirname "$0")"
 
+
+pm2 restart ${CONFIG_FILE}
+
 case "$1" in
     start)
         echo -e "${GREEN}正在启动 ${APP_NAME}...${NC}"
