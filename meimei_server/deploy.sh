@@ -4,6 +4,11 @@
 # PM2 管理脚本 - 支持 start/stop/restart/reload/logs/status
 # 用法: ./pm2-manage.sh [start|stop|restart|reload|logs|status|monit]
 # ========================================
+echo ' git update new code '
+git pull origin master
+
+echo ' npm run build'
+npm run build
 
 # 颜色定义
 RED='\033[0;31m'
