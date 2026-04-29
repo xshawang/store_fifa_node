@@ -83,8 +83,7 @@ export class FacebookEventService {
             num_items: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
           }
         },
-      ],
-      test_event_code: this.TEST_CODE
+      ]
     }
     this.logger.log(url,'发送 Facebook 事件 - 事件数据:', JSON.stringify(eventData))
     try {
