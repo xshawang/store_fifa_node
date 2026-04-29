@@ -6,6 +6,7 @@ import { Cart } from '../cart/entities/cart.entity'
 import { OrderService } from './order.service'
 import { OrderController } from './order.controller'
 import { CheckoutTemplateService } from './checkout-template.service'
+import { FacebookEventService } from './facebook-event.service'
 import { CartModule } from '../cart/cart.module'
 import { CacheModule } from '@nestjs/cache-manager'
 
@@ -16,7 +17,7 @@ import { CacheModule } from '@nestjs/cache-manager'
     CacheModule.register(),
   ],
   controllers: [OrderController],
-  providers: [OrderService, CheckoutTemplateService],
-  exports: [OrderService, CheckoutTemplateService],
+  providers: [OrderService, CheckoutTemplateService, FacebookEventService],
+  exports: [OrderService, CheckoutTemplateService, FacebookEventService],
 })
 export class OrderModule {}

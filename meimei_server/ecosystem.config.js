@@ -11,10 +11,10 @@ module.exports = {
 
       // 生产环境
       env_production: {
-        name: 'meimei_server_prod',
+        name: 'meimei_server_prod-3000',
         NODE_ENV: 'production',
         APP_ENV: 'production',
-        TZ: 'Asia/Shanghai',
+        TZ: 'America/Sao_Paulo',
       },
     },
   ],
