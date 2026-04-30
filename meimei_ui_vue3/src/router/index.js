@@ -145,6 +145,48 @@ export const dynamicRoutes = [
     ],
   },
   {
+    path: '/biz/order',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:order:query'],
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/biz/order/index'),
+        name: 'OrderManagement',
+        meta: { title: '订单管理', activeMenu: '/biz/order' },
+      },
+    ],
+  },
+  {
+    path: '/biz/payment-order',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:payment:query'],
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/biz/payment/order'),
+        name: 'PaymentOrderList',
+        meta: { title: '支付订单', activeMenu: '/biz/payment-order' },
+      },
+    ],
+  },
+  {
+    path: '/biz/payment-channel',
+    component: Layout,
+    hidden: true,
+    permissions: ['biz:channel:query'],
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/biz/payment/channel'),
+        name: 'PaymentChannel',
+        meta: { title: '支付渠道', activeMenu: '/biz/payment-channel' },
+      },
+    ],
+  },
+  {
     path: '/monitor/job-log',
     component: Layout,
     hidden: true,

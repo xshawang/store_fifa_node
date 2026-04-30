@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "Vue.volar",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "stylelint.vscode-stylelint",
+    "antfu.unocss",
+    "antfu.goto-alias",
+    "lokalise.i18n-ally",
+    "antfu.iconify",
+    "xabikos.javascriptsnippets",
+    "streetsidesoftware.code-spell-checker",
+    "eamodio.gitlens",
+    "gruntfuggly.todo-tree",
+    "formulahendry.auto-rename-tag",
+    "ms-azuretools.vscode-docker",
+    "bradlc.vscode-tailwindcss"
+  ]
+}
