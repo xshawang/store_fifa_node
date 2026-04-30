@@ -19,8 +19,8 @@ export const AppConfig = {
   // ==================== URL 配置 ====================
   
   // 支付相关 URL
-  CHECKOUT_PAY_BASE_URL: 'http://store.fafbuy.store/checkout/pay',
-  CHECKOUT_WEB_URL: 'http://store.fafbuy.store/checkouts',
+  CHECKOUT_PAY_BASE_URL: 'https://store.fafbuy.store/checkout/pay',
+  CHECKOUT_WEB_URL: 'https://store.fafbuy.store/checkouts',
   
   // ==================== CDN 资源配置 ====================
   
