@@ -7,11 +7,13 @@ import { CartController, PublicCartController } from './cart.controller'
 import { CookieService } from './cart-cookie.service'
 import { ProductModule } from '../product/product.module'
 import { ProductSkuService } from '../product/product-sku.service'
+import { OrderModule } from '../order/order.module'
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Cart, ProductSku]),
     ProductModule,
+    OrderModule,
   ],
   controllers: [CartController, PublicCartController],
   providers: [CartService, CookieService, ProductSkuService],
