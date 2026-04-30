@@ -33,7 +33,7 @@ export class XPayCreditMastercardStrategy implements PaymentStrategy {
       siteCode: 'TESTSITE001',
       apiBaseUrl: 'https://api.xpay.com',
       apiVersion: 'v1',
-      notifyUrl: 'https://store.fif.com/api/payment/notify/xpay-mastercard',
+      notifyUrl: 'https://store.fafbuy.store/api/payment/notify/xpay-mastercard',
       supportedCurrencies: ['USD', 'EUR', 'GBP', 'AUD', 'CAD'],  // Mastercard 支持的货币
       supportedMethods: ['MASTERCARD'],  // 仅支持 Mastercard
       minAmount: 1.0,

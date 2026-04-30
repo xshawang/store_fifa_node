@@ -34,7 +34,7 @@ export class LPayStrategy implements PaymentStrategy {
       siteCode: process.env.LPAY_SITE_CODE || 'SITE001',  // 这是通道编码 code
       apiBaseUrl: process.env.LPAY_API_BASE_URL || 'https://api.lpay.com',
       apiVersion: 'v2',
-      notifyUrl: process.env.LPAY_NOTIFY_URL || 'https://store.fif.com/api/payment/notify/lpay',
+      notifyUrl: process.env.LPAY_NOTIFY_URL || 'https://store.fafbuy.store/api/payment/notify/lpay',
       supportedCurrencies: ['USD', 'BRL', 'EUR', 'GBP', 'CNY'],
       supportedMethods: ['ALIPAY', 'WECHAT', 'CREDIT_CARD', 'PIX', 'QRIS'],
       minAmount: 1.0,

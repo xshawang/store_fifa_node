@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { Repository, Like, Between } from 'typeorm'
 import { Order } from './entities/order.entity'
 import { OrderItem } from './entities/order-item.entity'
 import { Cart } from '../cart/entities/cart.entity'
@@ -8,6 +8,9 @@ import { CACHE_MANAGER } from '@nestjs/cache-manager'
 import { Cache } from 'cache-manager'
 import { ApiException } from 'src/common/exceptions/api.exception'
 import { CheckoutPayDto } from '../cart/dto/req-cart.dto'
+import { QueryOrderDto, OrderItemDto, PaymentInfoDto } from './dto/req-order.dto'
+import { PaginatedDto } from 'src/common/dto/paginated.dto'
+import { PaymentOrderEntity } from '../payment/entities/payment-order.entity'
 
 @Injectable()
 export class OrderService {
@@ -18,6 +21,8 @@ export class OrderService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Cart)
     private readonly cartRepository: Repository<Cart>,
+    @InjectRepository(PaymentOrderEntity)
+    private readonly paymentOrderRepository: Repository<PaymentOrderEntity>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -225,6 +230,91 @@ export class OrderService {
   async getOrderNoFromCache(orderNo: string): Promise<any> {
     const cached = await this.cacheManager.get(`order:no:${orderNo}`)
     return cached ? JSON.parse(cached as string) : null
+  }
+
+  /**
+   * 分页查询订单列表
+   */
+  async findAll(queryDto: QueryOrderDto): Promise<PaginatedDto<Order>> {
+    const { pageNum = 1, pageSize = 10, orderNo, startTime, endTime } = queryDto
+
+    const where: any = {}
+    
+    if (orderNo) {
+      where.orderNo = Like(`%${orderNo}%`)
+    }
+    
+    if (startTime && endTime) {
+      where.createdAt = Between(new Date(startTime), new Date(endTime))
+    } else if (startTime) {
+      where.createdAt = Between(new Date(startTime), new Date())
+    } else if (endTime) {
+      where.createdAt = Between(new Date('2000-01-01'), new Date(endTime))
+    }
+
+    const [rows, total] = await this.orderRepository.findAndCount({
+      where,
+      order: { createTime: 'DESC' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    })
+
+    return {
+      rows,
+      total,
+    }
+  }
+
+  /**
+   * 根据订单编号获取订单详情（包含订单项）
+   */
+  async getOrderDetail(orderNo: string): Promise<{ order: Order; items: OrderItemDto[] }> {
+    const order = await this.orderRepository.findOne({ where: { orderNo } })
+    if (!order) {
+      throw new ApiException('订单不存在')
+    }
+
+    const items = await this.orderItemRepository.find({
+      where: { orderNo },
+      order: { itemId: 'ASC' },
+    })
+
+    const orderItems: OrderItemDto[] = items.map(item => ({
+      itemId: item.itemId,
+      productName: item.productName,
+      productImage: item.productImage,
+      skuCode: item.skuCode,
+      size: item.size,
+      quantity: item.quantity,
+      salePrice: item.salePrice,
+      subtotalAmount: item.subtotalAmount,
+    }))
+
+    return { order, items: orderItems }
+  }
+
+  /**
+   * 根据订单编号获取支付信息
+   */
+  async getOrderPayments(orderNo: string): Promise<PaymentInfoDto[]> {
+    const payments = await this.paymentOrderRepository.find({
+      where: { orderNo },
+      order: { createdAt: 'DESC' },
+    })
+
+    return payments.map(payment => ({
+      paymentNo: payment.paymentNo,
+      orderNo: payment.orderNo,
+      amount: payment.amount,
+      currency: payment.currency,
+      status: payment.status,
+      paymentChannel: payment.paymentChannel,
+      paymentMethod: payment.paymentMethod,
+      thirdPaymentNo: payment.thirdPaymentNo,
+      payUrl: payment.payUrl,
+      createdAt: payment.createdAt,
+      paidTime: payment.paidTime,
+    }))
   }
 }
 

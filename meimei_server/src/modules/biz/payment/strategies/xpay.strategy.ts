@@ -31,7 +31,7 @@ export class XPayStrategy implements PaymentStrategy {
       siteCode: 'TESTSITE001',
       apiBaseUrl: 'https://api.xpay.com',
       apiVersion: 'v1',
-      notifyUrl: 'https://store.fif.com/api/payment/notify/xpay',
+      notifyUrl: 'https://store.fafbuy.store/api/payment/notify/xpay',
       supportedCurrencies: ['USD', 'IDR', 'EUR', 'GBP'],
       supportedMethods: ['CREDIT_CARD', 'VISA', 'MASTERCARD'],
       minAmount: 1.0,

@@ -90,7 +90,7 @@ export class PaymentController {
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,false)
 
       console.log('📄 已生成 Checkout HTML 页面')
-      console.log('🔗 支付 URL:', `https://store.fif.com/checkout/payment?v=${orderData.orderNo}`)
+      console.log('🔗 支付 URL:', `https://store.fafbuy.store/checkout/payment?v=${orderData.orderNo}`)
 
       // 4. 返回 HTML 响应（不再 302 重定向）
      
@@ -334,7 +334,7 @@ export class PaymentController {
         this.logger.error(`创建支付订单异常: ${error.message}`, error.stack);
         // 创建失败，跳转到 PIX 页面
         if (!res.headersSent) {
-          const redirectUrl = `https://store.fif.com/checkout/payment/pix?v=${checkoutPayDto.v}`;
+          const redirectUrl = `https://store.fafbuy.store/checkout/payment/pix?v=${checkoutPayDto.v}`;
           this.logger.log(`支付异常，302 跳转到 PIX 支付页面: ${redirectUrl}`);
           res.redirect(redirectUrl);
         }
@@ -351,7 +351,7 @@ export class PaymentController {
         } else {
           // 支付失败，跳转到 PIX 支付页面
           this.logger.log(`支付失败 订单编号: ${checkoutPayDto.v} msg: ${paymentResult?.message || '未知错误'}`);
-          const redirectUrl = `https://store.fif.com/checkout/payment/pix?v=${checkoutPayDto.v}`;
+          const redirectUrl = `https://store.fafbuy.store/checkout/payment/pix?v=${checkoutPayDto.v}`;
           this.logger.log(`302 跳转到 PIX 支付页面: ${redirectUrl}`);
           res.redirect(redirectUrl);
         }

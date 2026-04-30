@@ -115,7 +115,7 @@ export class CheckoutTemplateService implements OnModuleInit {
     const vParam = currentUrl.searchParams.get('v');
     
     // 设置全局支付基础地址
-    window.CHECKOUT_PAY_BASE_URL = 'https://store.fif.com/checkout/pay';
+    window.CHECKOUT_PAY_BASE_URL = 'https://store.fafbuy.store/checkout/pay';
     
     // 构建完整的支付URL（包含v参数）
     if (vParam) {
@@ -127,7 +127,7 @@ export class CheckoutTemplateService implements OnModuleInit {
     // 新的配置代码（直接注入订单编号）
     const newConfig = `// 订单编号已由服务端注入
     window.CHECKOUT_ORDER_NO = '${orderNo}';
-    window.CHECKOUT_PAY_BASE_URL = 'https://store.fif.com/checkout/pay';
+    window.CHECKOUT_PAY_BASE_URL = 'https://store.fafbuy.store/checkout/pay';
     window.CHECKOUT_PAY_URL = window.CHECKOUT_PAY_BASE_URL + '?v=${encodedOrderNo}';
     
     console.log('[Checkout Config] Order No:', window.CHECKOUT_ORDER_NO);
@@ -142,7 +142,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       const injectScript = `
 <script>
   window.CHECKOUT_ORDER_NO = '${orderNo}';
-  window.CHECKOUT_PAY_BASE_URL = 'https://store.fif.com/checkout/pay';
+  window.CHECKOUT_PAY_BASE_URL = 'https://store.fafbuy.store/checkout/pay';
   window.CHECKOUT_PAY_URL = window.CHECKOUT_PAY_BASE_URL + '?v=${encodedOrderNo}';
   console.log('[Checkout Config] Order No (injected):', window.CHECKOUT_ORDER_NO);
 </script>`

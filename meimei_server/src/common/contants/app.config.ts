@@ -8,8 +8,8 @@ export const AppConfig = {
   // 美元转雷亚尔汇率
   USD_TO_BRL_RATE:5,
   // 主站域名
-  MAIN_DOMAIN: 'store.fif.com',
-  MAIN_DOMAIN_HTTPS: 'https://store.fif.com',
+  MAIN_DOMAIN: 'store.fafbuy.store',
+  MAIN_DOMAIN_HTTPS: 'https://store.fafbuy.store',
   
   // Shopify 相关域名
   SHOPIFY_CDN: 'https://cdn.shopify.com',
@@ -19,8 +19,8 @@ export const AppConfig = {
   // ==================== URL 配置 ====================
   
   // 支付相关 URL
-  CHECKOUT_PAY_BASE_URL: 'https://store.fif.com/checkout/pay',
-  CHECKOUT_WEB_URL: 'https://store.fif.com/checkouts',
+  CHECKOUT_PAY_BASE_URL: 'http://store.fafbuy.store/checkout/pay',
+  CHECKOUT_WEB_URL: 'http://store.fafbuy.store/checkouts',
   
   // ==================== CDN 资源配置 ====================
   

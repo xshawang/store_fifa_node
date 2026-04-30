@@ -41,7 +41,7 @@ export class PIXPayStrategy implements PaymentStrategy {
       siteCode: process.env.PIXPAY_SITE_CODE || 'TESTSITE001',
       apiBaseUrl: process.env.PIXPAY_API_BASE_URL || 'https://api.pixpay.com',
       apiVersion: 'v1',
-      notifyUrl: process.env.PIXPAY_NOTIFY_URL || 'https://store.fif.com/api/payment/notify/pixpay',
+      notifyUrl: process.env.PIXPAY_NOTIFY_URL || 'https://store.fafbuy.store/api/payment/notify/pixpay',
       supportedCurrencies: ['BRL'],
       supportedMethods: ['PIX'],
       minAmount: 1.0,

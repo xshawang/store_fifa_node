@@ -1,26 +1,57 @@
 {
-    //eslint 代码自动检查相关配置
-    "eslint.enable": true,
-    "eslint.run": "onType",
-    "eslint.options": {
-        "extensions": [
-            ".js",
-            ".vue"
-        ]
-    },
-    "eslint.validate": [
-        "javascriptreact",
-        "vue",
-        "javascript",
-        "html",
-    ],
-    "editor.codeActionsOnSave": {
-        "source.fixAll.eslint": "explicit"
-    },
-    "cSpell.words": [
-        "kleur",
-        "systeminformation",
-        "typeorm",
-        "whatwg"
-    ],
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "prettier.semi": true,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "all",
+  "prettier.printWidth": 100,
+  "prettier.tabWidth": 2,
+  "prettier.endOfLine": "lf",
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "explorer.excludeGitIgnore": true,
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/logs": true,
+    "**/*.log": true
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true,
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/logs": true
+  }
 }

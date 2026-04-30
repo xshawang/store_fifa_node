@@ -56,7 +56,7 @@ pQIDAQAB
       siteCode: process.env.EYPAY_SITE_CODE || '',
       apiBaseUrl: process.env.EYPAY_API_BASE_URL || 'https://api.eypays.com',
       apiVersion: 'v1',
-      notifyUrl: process.env.EYPAY_NOTIFY_URL || 'https://store.fif.com/api/payment/notify/eypay',
+      notifyUrl: process.env.EYPAY_NOTIFY_URL || 'https://store.fafbuy.store/api/payment/notify/eypay',
       supportedCurrencies: ['BRL'],
       supportedMethods: ['PIX'],
       minAmount: 1.0,

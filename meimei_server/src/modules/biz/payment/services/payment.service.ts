@@ -1,6 +1,6 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Like, Between } from 'typeorm';
 import { PaymentOrderEntity } from '../entities/payment-order.entity';
 import { PaymentChannelEntity } from '../entities/payment-channel.entity';
 import { DeliverEntity } from '../entities/deliver.entity';
@@ -8,6 +8,9 @@ import { PaymentStrategy } from '../interfaces/payment-strategy.interface';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import {Order} from '../../order/entities/order.entity';
 import {OrderItem} from '../../order/entities/order-item.entity';
+import { QueryPaymentOrderDto, QueryPaymentChannelDto, CreatePaymentChannelDto, UpdatePaymentChannelDto } from '../dto/query-payment.dto';
+import { PaginatedDto } from 'src/common/dto/paginated.dto';
+import { ApiException } from 'src/common/exceptions/api.exception';
 /**
  * 支付核心服务
  */
@@ -425,5 +428,139 @@ export class PaymentService {
 
     // 返回优先级最高的通道
     return supported[0];
+  }
+
+  /**
+   * 分页查询支付订单列表
+   */
+  async findPaymentOrders(queryDto: QueryPaymentOrderDto): Promise<PaginatedDto<PaymentOrderEntity>> {
+    const { pageNum = 1, pageSize = 10, orderNo, paymentNo, startTime, endTime, status } = queryDto;
+
+    const where: any = {};
+    
+    if (orderNo) {
+      where.orderNo = Like(`%${orderNo}%`);
+    }
+    
+    if (paymentNo) {
+      where.paymentNo = Like(`%${paymentNo}%`);
+    }
+    
+    if (status !== undefined && status !== null) {
+      where.status = status;
+    }
+    
+    if (startTime && endTime) {
+      where.createdAt = Between(new Date(startTime), new Date(endTime));
+    } else if (startTime) {
+      where.createdAt = Between(new Date(startTime), new Date());
+    } else if (endTime) {
+      where.createdAt = Between(new Date('2000-01-01'), new Date(endTime));
+    }
+
+    const [rows, total] = await this.paymentOrderRepo.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    });
+
+    return {
+      rows,
+      total,
+    };
+  }
+
+  /**
+   * 分页查询支付渠道列表
+   */
+  async findPaymentChannels(queryDto: QueryPaymentChannelDto): Promise<PaginatedDto<PaymentChannelEntity>> {
+    const { pageNum = 1, pageSize = 10, channelCode, channelName, channelType, isActive } = queryDto;
+
+    const where: any = {};
+    
+    if (channelCode) {
+      where.channelCode = Like(`%${channelCode}%`);
+    }
+    
+    if (channelName) {
+      where.channelName = Like(`%${channelName}%`);
+    }
+    
+    if (channelType) {
+      where.channelType = channelType;
+    }
+    
+    if (isActive !== undefined && isActive !== null) {
+      where.isActive = isActive;
+    }
+
+    const [rows, total] = await this.paymentChannelRepo.findAndCount({
+      where,
+      order: { isActive: 'DESC',  priority: 'ASC',sortOrder: 'ASC' },
+      skip: (pageNum - 1) * pageSize,
+      take: pageSize,
+    });
+
+    return {
+      rows,
+      total,
+    };
+  }
+
+  /**
+   * 根据ID获取支付渠道详情
+   */
+  async findPaymentChannelById(id: number): Promise<PaymentChannelEntity> {
+    const channel = await this.paymentChannelRepo.findOne({ where: { id } });
+    if (!channel) {
+      throw new ApiException('支付渠道不存在');
+    }
+    return channel;
+  }
+
+  /**
+   * 创建支付渠道
+   */
+  async createPaymentChannel(dto: CreatePaymentChannelDto): Promise<void> {
+    // 检查渠道编码是否已存在
+    const existing = await this.paymentChannelRepo.findOne({
+      where: { channelCode: dto.channelCode },
+    });
+    if (existing) {
+      throw new ApiException('渠道编码已存在');
+    }
+    let channel =  new PaymentChannelEntity();
+    Object.assign(channel, dto);
+    this.paymentChannelRepo.create(channel);
+    //await this.paymentChannelRepo.save(dto);
+  }
+
+  /**
+   * 更新支付渠道
+   */
+  async updatePaymentChannel(id: number, dto: UpdatePaymentChannelDto): Promise<void> {
+    const channel = await this.findPaymentChannelById(id);
+    
+    // 如果修改了渠道编码，检查是否与其他渠道冲突
+    if (dto.channelCode && dto.channelCode !== channel.channelCode) {
+      const existing = await this.paymentChannelRepo.findOne({
+        where: { channelCode: dto.channelCode },
+      });
+      if (existing) {
+        throw new ApiException('渠道编码已存在');
+      }
+    }
+
+    Object.assign(channel, dto);
+    await this.paymentChannelRepo.save(channel);
+  }
+
+  /**
+   * 删除支付渠道
+   */
+  async deletePaymentChannel(ids: string): Promise<void> {
+    const idArray = ids.split(',').map((id) => Number(id));
+    await this.paymentChannelRepo.delete(idArray);
   }
 }

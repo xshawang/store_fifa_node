@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Body, Res, HttpStatus } from '@nestjs/common'
+import { Controller, Post, Req, Body, Res, HttpStatus, Get, Param, Query } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { Public } from 'src/common/decorators/public.decorator'
@@ -9,10 +9,15 @@ import { Log, BusinessTypeEnum } from 'src/common/decorators/log.decorator'
 import { Keep } from 'src/common/decorators/keep.decorator'
 import { CheckoutTemplateService } from './checkout-template.service'
 import { FacebookEventService } from './facebook-event.service'
+import { QueryOrderDto } from './dto/req-order.dto'
+import { PaginationPipe } from 'src/common/pipes/pagination.pipe'
+import { ApiPaginatedResponse } from 'src/common/decorators/api-paginated-response.decorator'
+import { RequiresPermissions } from 'src/common/decorators/requires-permissions.decorator'
+import { Order } from './entities/order.entity'
 
 @ApiTags('订单管理')
 @ApiBearerAuth()
-@Controller()
+@Controller('biz/order')
 export class OrderController {
   constructor(
     private readonly orderService: OrderService,
@@ -20,6 +25,28 @@ export class OrderController {
     private readonly checkoutTemplateService: CheckoutTemplateService,
     private readonly facebookEventService: FacebookEventService,
   ) {}
+
+  /* 分页查询订单列表 */
+  @Get('list')
+  @RequiresPermissions('biz:order:query')
+  @ApiPaginatedResponse(Order)
+  async list(@Query(PaginationPipe) queryDto: QueryOrderDto) {
+    return this.orderService.findAll(queryDto)
+  }
+
+  /* 获取订单详情（包含订单项） */
+  @Get('detail/:orderNo')
+  @RequiresPermissions('biz:order:query')
+  async getDetail(@Param('orderNo') orderNo: string) {
+    return this.orderService.getOrderDetail(orderNo)
+  }
+
+  /* 获取订单支付信息 */
+  @Get('payments/:orderNo')
+  @RequiresPermissions('biz:order:query')
+  async getPayments(@Param('orderNo') orderNo: string) {
+    return this.orderService.getOrderPayments(orderNo)
+  }
  
   /**
    * 从购物车创建订单
@@ -99,7 +126,7 @@ export class OrderController {
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,true)
 
       console.log('📄 已生成 Checkout HTML 页面')
-      console.log('🔗 支付 URL:', `https://store.fif.com/checkout/pay?v=${orderData.orderNo}`)
+      console.log('🔗 支付 URL:', `https://store.fafbuy.store/checkout/pay?v=${orderData.orderNo}`)
 
       // 6. 返回 HTML 响应（不再 302 重定向）
       response.setHeader('Content-Type', 'text/html; charset=utf-8')
