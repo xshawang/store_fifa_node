@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Query, Body, Param } from '@nestjs/common'
+import { Controller, Get, Post, Put, Delete, Query, Body, Param, Logger } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger'
 import { RequiresPermissions } from 'src/common/decorators/requires-permissions.decorator'
 import { Log, BusinessTypeEnum } from 'src/common/decorators/log.decorator'
@@ -14,6 +14,7 @@ import { QueryOrderDto } from '../../order/dto/req-order.dto'
 import { PaymentOrderEntity } from '../entities/payment-order.entity'
 import { PaymentChannelEntity } from '../entities/payment-channel.entity'
 import { Order } from '../../order/entities/order.entity'
+import { DataObj } from 'src/common/class/data-obj.class'
 
 /**
  * 支付管理控制器
@@ -23,6 +24,7 @@ import { Order } from '../../order/entities/order.entity'
 @ApiBearerAuth()
 @Controller('biz/payment')
 export class PaymentAdminController {
+    private readonly logger = new Logger(PaymentAdminController.name);
   constructor(
     private readonly paymentService: PaymentService,
     private readonly orderService: OrderService,
@@ -48,7 +50,8 @@ export class PaymentAdminController {
   @Get('channel/:id')
   @RequiresPermissions('biz:channel:query')
   async getPaymentChannel(@Param('id') id: number) {
-    return this.paymentService.findPaymentChannelById(id)
+    const channel = await this.paymentService.findPaymentChannelById(id)
+    return DataObj.create(channel);
   }
 
   /* 新增支付渠道 */
@@ -63,8 +66,10 @@ export class PaymentAdminController {
     @Body() createDto: CreatePaymentChannelDto,
     @User(UserEnum.userName, UserInfoPipe) userName: string,
   ) {
+    this.logger.log('创建支付渠道', JSON.stringify(createDto))
     createDto['createBy'] = createDto['updateBy'] = userName
     await this.paymentService.createPaymentChannel(createDto)
+    return DataObj.create({ message: '新增成功' })
   }
 
   /* 修改支付渠道 */
@@ -80,6 +85,7 @@ export class PaymentAdminController {
     @User(UserEnum.userName, UserInfoPipe) userName: string,
   ) {
     await this.paymentService.updatePaymentChannel(updateDto.id, updateDto)
+    return DataObj.create({ message: '更新成功' })
   }
 
   /* 删除支付渠道 */
@@ -91,5 +97,6 @@ export class PaymentAdminController {
   })
   async deletePaymentChannel(@Param('ids') ids: string) {
     await this.paymentService.deletePaymentChannel(ids)
+    return DataObj.create({ message: '删除成功' })
   }
 }

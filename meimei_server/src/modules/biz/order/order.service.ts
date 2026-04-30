@@ -11,6 +11,7 @@ import { CheckoutPayDto } from '../cart/dto/req-cart.dto'
 import { QueryOrderDto, OrderItemDto, PaymentInfoDto } from './dto/req-order.dto'
 import { PaginatedDto } from 'src/common/dto/paginated.dto'
 import { PaymentOrderEntity } from '../payment/entities/payment-order.entity'
+import { DeliverEntity } from '../payment/entities/deliver.entity'
 
 @Injectable()
 export class OrderService {
@@ -23,6 +24,8 @@ export class OrderService {
     private readonly cartRepository: Repository<Cart>,
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepository: Repository<PaymentOrderEntity>,
+    @InjectRepository(DeliverEntity)
+    private readonly deliverRepository: Repository<DeliverEntity>,
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
@@ -236,7 +239,7 @@ export class OrderService {
    * 分页查询订单列表
    */
   async findAll(queryDto: QueryOrderDto): Promise<PaginatedDto<Order>> {
-    const { pageNum = 1, pageSize = 10, orderNo, startTime, endTime } = queryDto
+    const { pageNum = 1, pageSize = 10, orderNo, orderStatus, paymentStatus, startTime, endTime } = queryDto
 
     const where: any = {}
     
@@ -244,12 +247,20 @@ export class OrderService {
       where.orderNo = Like(`%${orderNo}%`)
     }
     
+    if (orderStatus !== undefined && orderStatus !== null) {
+      where.orderStatus = orderStatus
+    }
+    
+    if (paymentStatus !== undefined && paymentStatus !== null) {
+      where.paymentStatus = paymentStatus
+    }
+    
     if (startTime && endTime) {
-      where.createdAt = Between(new Date(startTime), new Date(endTime))
+      where.createTime = Between(new Date(startTime), new Date(endTime))
     } else if (startTime) {
-      where.createdAt = Between(new Date(startTime), new Date())
+      where.createTime = Between(new Date(startTime), new Date())
     } else if (endTime) {
-      where.createdAt = Between(new Date('2000-01-01'), new Date(endTime))
+      where.createTime = Between(new Date('2000-01-01'), new Date(endTime))
     }
 
     const [rows, total] = await this.orderRepository.findAndCount({
@@ -266,9 +277,9 @@ export class OrderService {
   }
 
   /**
-   * 根据订单编号获取订单详情（包含订单项）
+   * 根据订单编号获取订单详情（包含订单项和配送信息）
    */
-  async getOrderDetail(orderNo: string): Promise<{ order: Order; items: OrderItemDto[] }> {
+  async getOrderDetail(orderNo: string): Promise<{ order: Order; items: OrderItemDto[]; deliver: DeliverEntity | null }> {
     const order = await this.orderRepository.findOne({ where: { orderNo } })
     if (!order) {
       throw new ApiException('订单不存在')
@@ -290,7 +301,13 @@ export class OrderService {
       subtotalAmount: item.subtotalAmount,
     }))
 
-    return { order, items: orderItems }
+    // 查询配送信息
+    const deliver = await this.deliverRepository.findOne({
+      where: { orderNo },
+      order: { id: 'DESC' },  // 获取最新的配送信息
+    })
+
+    return { order, items: orderItems, deliver }
   }
 
   /**

@@ -531,9 +531,10 @@ export class PaymentService {
       throw new ApiException('渠道编码已存在');
     }
     let channel =  new PaymentChannelEntity();
-    Object.assign(channel, dto);
-    this.paymentChannelRepo.create(channel);
-    //await this.paymentChannelRepo.save(dto);
+    Object.assign(channel,dto);
+    this.logger.log('创建支付渠道', JSON.stringify(channel));
+    //this.paymentChannelRepo.create(channel);
+    await this.paymentChannelRepo.save(channel);
   }
 
   /**

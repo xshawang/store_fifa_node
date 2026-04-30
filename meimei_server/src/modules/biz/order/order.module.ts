@@ -4,6 +4,7 @@ import { Order } from './entities/order.entity'
 import { OrderItem } from './entities/order-item.entity'
 import { Cart } from '../cart/entities/cart.entity'
 import { PaymentOrderEntity } from '../payment/entities/payment-order.entity'
+import { DeliverEntity } from '../payment/entities/deliver.entity'
 import { OrderService } from './order.service'
 import { OrderController } from './order.controller'
 import { CheckoutTemplateService } from './checkout-template.service'
@@ -13,7 +14,7 @@ import { CacheModule } from '@nestjs/cache-manager'
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Cart, PaymentOrderEntity]),
+    TypeOrmModule.forFeature([Order, OrderItem, Cart, PaymentOrderEntity, DeliverEntity]),
     forwardRef(() => CartModule),
     CacheModule.register(),
   ],

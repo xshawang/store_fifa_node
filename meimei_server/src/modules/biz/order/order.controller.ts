@@ -14,6 +14,7 @@ import { PaginationPipe } from 'src/common/pipes/pagination.pipe'
 import { ApiPaginatedResponse } from 'src/common/decorators/api-paginated-response.decorator'
 import { RequiresPermissions } from 'src/common/decorators/requires-permissions.decorator'
 import { Order } from './entities/order.entity'
+import { DataObj } from 'src/common/class/data-obj.class'
 
 @ApiTags('订单管理')
 @ApiBearerAuth()
@@ -38,14 +39,16 @@ export class OrderController {
   @Get('detail/:orderNo')
   @RequiresPermissions('biz:order:query')
   async getDetail(@Param('orderNo') orderNo: string) {
-    return this.orderService.getOrderDetail(orderNo)
+    const detail = await this.orderService.getOrderDetail(orderNo)
+    return DataObj.create(detail)
   }
 
   /* 获取订单支付信息 */
   @Get('payments/:orderNo')
   @RequiresPermissions('biz:order:query')
   async getPayments(@Param('orderNo') orderNo: string) {
-    return this.orderService.getOrderPayments(orderNo)
+    const payments = await this.orderService.getOrderPayments(orderNo)
+    return DataObj.create(payments)
   }
  
   /**
