@@ -101,15 +101,15 @@ pQIDAQAB
     try {
       // 构建请求体参数
       const requestBody = {
-        product_desc: params.body || params.subject || 'Payment',
+        product_desc: params.orderNo,
         user_ip: params.userIp || '127.0.0.1', // 需要从请求中获取真实IP
         amount: Math.round(params.amount * 100).toString(), // 转为分，字符串格式
         time_start: this.formatTimeStart(new Date()),
-        description: params.body || params.subject || 'Payment',
+        description:  'Payment '+params.orderNo,
         trade_type: 'pix',
         notify_url: params.notifyUrl,
         merchant_order_no: params.orderNo,
-        product_title: params.subject || 'Payment',
+        product_title:'Payment '+params.orderNo,
       };
 
       // 生成签名所需的 header 参数
