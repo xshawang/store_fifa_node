@@ -228,7 +228,7 @@ export class PaymentService {
   }
 
   /**
-   * 选择支付通道
+   * 选择支付通道 - 支持负载均衡（Round Robin）
    */
   private async selectPaymentChannel(
     amount: number,
@@ -238,7 +238,7 @@ export class PaymentService {
     // 查询所有启用的通道
     const channels = await this.paymentChannelRepo.find({
       where: { isActive: true, channelType: paymentMethod },
-      order: { priority: 'ASC' },
+      order: { priority: 'ASC', loadBalanceCount: 'ASC' },
     });
 
     // 过滤支持的通道
@@ -252,7 +252,18 @@ export class PaymentService {
       return null;
     }
 
-    return supported[0];
+    // Round Robin 负载均衡：选择 loadBalanceCount 最小的通道
+    // 如果有多个相同最小值，选择第一个（按priority排序）
+    const minLoadCount = Math.min(...supported.map(ch => ch.loadBalanceCount));
+    const selectedChannel = supported.find(ch => ch.loadBalanceCount === minLoadCount);
+    
+    // 更新选中的通道的负载计数
+    if (selectedChannel) {
+      selectedChannel.loadBalanceCount += 1;
+      await this.paymentChannelRepo.save(selectedChannel);
+    }
+    this.logger.log(`选择支付通道: ${selectedChannel.channelCode} - ${selectedChannel.channelName} - ${selectedChannel.loadBalanceCount}` );
+    return selectedChannel;
   }
 
   /**

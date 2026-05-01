@@ -69,6 +69,9 @@ export class PaymentChannelEntity {
   @Column({ name: 'sort_order', type: 'int', default: 0 })
   sortOrder: number;
 
+  @Column({ name: 'load_balance_count', type: 'int', default: 0 })
+  loadBalanceCount: number;
+
   @Column({ type: 'json', nullable: true })
   config: any;
 
