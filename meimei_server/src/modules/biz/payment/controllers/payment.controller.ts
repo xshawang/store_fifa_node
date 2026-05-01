@@ -209,7 +209,7 @@ export class PaymentController {
       if(paymentResult && paymentResult.success){
         this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}  ${paymentResult.payUrl}  ${paymentResult.qrCode}  ${paymentResult.expireTime}`);
          // 5. 返回支付跳转链接（包含使用的通道信息）
-        return res.redirect(paymentResult.qrCode);
+        return res.redirect(paymentResult.payUrl);
       }
       else{
           this.logger.log(`支付订单创建失败: ${paymentResult.message}  orderNo: ${checkoutPayDto.v}`);
