@@ -99,7 +99,7 @@ export class LPayStrategy implements PaymentStrategy {
       this.logger.debug(`LPAY请求参数: ${JSON.stringify(requestData)}`);
 
       // 调用API - 根据文档使用 /api/v2/pay/in 接口
-      const apiUrl = `${this.channelConfig.apiBaseUrl}/api/v2/pay/in`
+      const apiUrl = `${this.channelConfig.apiBaseUrl}`
       const reqParams = { ...requestData};
       this.logger.debug(`LPAY请求参数: ${JSON.stringify(reqParams)}`)
 

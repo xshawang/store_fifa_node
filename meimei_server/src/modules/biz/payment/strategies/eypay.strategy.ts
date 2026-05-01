@@ -115,7 +115,7 @@ pQIDAQAB
       // 生成签名所需的 header 参数
       const nonce = this.generateNonce();
       const timestamp = Date.now().toString(); // 13位时间戳
-      const authorization = this.channelConfig.platformKey;
+      const authorization = this.channelConfig.siteCode;
 
       // 组装签名数据
       const signData = `POST\n${nonce}\n${timestamp}\n${authorization}\n${JSON.stringify(requestBody)}`;
@@ -123,6 +123,9 @@ pQIDAQAB
       // 生成签名
       const sign = this.rsaSign(signData, this.channelConfig.platformSecret);
       this.logger.debug(`EYPAY签名: ${sign}`);
+
+      const validate = this.rsaVerify(signData, sign, this.channelConfig.platformKey);
+      console.log(`EYPAY签名验证结果: ${validate}`);
       // 设置请求头
       const headers = {
         'Content-Type': 'application/json;charset=utf-8',
@@ -136,7 +139,7 @@ pQIDAQAB
       this.logger.debug(`EYPAY签名数据: ${signData}`);
 
       // 调用API
-      const apiUrl = `${this.channelConfig.apiBaseUrl}/merchant-api/${this.channelConfig.apiVersion}/order/create`;
+      const apiUrl = `${this.channelConfig.apiBaseUrl}`;
       const response = await firstValueFrom(
         this.httpService.post(apiUrl, requestBody, { headers }),
       );
@@ -192,7 +195,7 @@ pQIDAQAB
       };
     }
   }
-
+ 
   /**
    * 查询支付状态
    */
