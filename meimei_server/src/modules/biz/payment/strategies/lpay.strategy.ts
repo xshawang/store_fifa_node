@@ -89,6 +89,7 @@ export class LPayStrategy implements PaymentStrategy {
         amount: brlAmount,
         merchant_order_no: params.orderNo,
         api_key: this.channelConfig.platformKey,
+        code: this.channelConfig.siteCode,
       };
 
       // 生成签名
