@@ -90,6 +90,7 @@ export class LPayStrategy implements PaymentStrategy {
         merchant_order_no: params.orderNo,
         api_key: this.channelConfig.platformKey,
         code: this.channelConfig.siteCode,
+        notify_url: this.channelConfig.notifyUrl,
       };
 
       // 生成签名
@@ -99,7 +100,7 @@ export class LPayStrategy implements PaymentStrategy {
 
       // 调用API - 根据文档使用 /api/v2/pay/in 接口
       const apiUrl = `${this.channelConfig.apiBaseUrl}/api/v2/pay/in`
-      const reqParams = { ...requestData, code: this.channelConfig.siteCode, notify_url: this.channelConfig.notifyUrl };
+      const reqParams = { ...requestData};
       this.logger.debug(`LPAY请求参数: ${JSON.stringify(reqParams)}`)
 
       const response = await firstValueFrom(
