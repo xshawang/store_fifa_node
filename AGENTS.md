@@ -1,6 +1,7 @@
 # FIFA Store 项目团队协作配置
 
 本文档包含 meimei_server（后端）和 meimei_ui_vue3（前端）项目的团队协作规范和配置。
+所有输出为简体中文
 
 ## 📁 项目结构
 

@@ -88,132 +88,132 @@ export const constantRoutes = [
 
 // 动态路由，基于用户权限动态去加载
 export const dynamicRoutes = [
-  {
-    path: '/system/user-auth',
-    component: Layout,
-    hidden: true,
-    permissions: ['system:user:edit'],
-    children: [
-      {
-        path: 'role/:userId(\\d+)',
-        component: () => import('@/views/system/user/authRole'),
-        name: 'AuthRole',
-        meta: { title: '分配角色', activeMenu: '/system/user' },
-      },
-    ],
-  },
-  {
-    path: '/system/role-auth',
-    component: Layout,
-    hidden: true,
-    permissions: ['system:role:edit'],
-    children: [
-      {
-        path: 'user/:roleId(\\d+)',
-        component: () => import('@/views/system/role/authUser'),
-        name: 'AuthUser',
-        meta: { title: '分配用户', activeMenu: '/system/role' },
-      },
-    ],
-  },
-  {
-    path: '/system/dict-data',
-    component: Layout,
-    hidden: true,
-    permissions: ['system:dict:list'],
-    children: [
-      {
-        path: 'index/:dictId(\\d+)',
-        component: () => import('@/views/system/dict/data'),
-        name: 'Data',
-        meta: { title: '字典数据', activeMenu: '/system/dict' },
-      },
-    ],
-  },
-  {
-    path: '/biz/nav/websites',
-    component: Layout,
-    hidden: true,
-    permissions: ['biz:nav:list'],
-    children: [
-      {
-        path: 'index/:id(\\d+)',
-        component: () => import('@/views/biz/nav/websites'),
-        name: 'Websites',
-        meta: { title: '网站数据', activeMenu: '/biz/nav' },
-      },
-    ],
-  },
-  {
-    path: '/biz/order',
-    component: Layout,
-    hidden: true,
-    permissions: ['biz:order:query'],
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/biz/order/index'),
-        name: 'OrderManagement',
-        meta: { title: '订单管理', activeMenu: '/biz/order' },
-      },
-    ],
-  },
-  {
-    path: '/biz/payment-order',
-    component: Layout,
-    hidden: true,
-    permissions: ['biz:payment:query'],
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/biz/payment/order'),
-        name: 'PaymentOrderList',
-        meta: { title: '支付订单', activeMenu: '/biz/payment-order' },
-      },
-    ],
-  },
-  {
-    path: '/biz/payment-channel',
-    component: Layout,
-    hidden: true,
-    permissions: ['biz:channel:query'],
-    children: [
-      {
-        path: 'index',
-        component: () => import('@/views/biz/payment/channel'),
-        name: 'PaymentChannel',
-        meta: { title: '支付渠道', activeMenu: '/biz/payment-channel' },
-      },
-    ],
-  },
-  {
-    path: '/monitor/job-log',
-    component: Layout,
-    hidden: true,
-    permissions: ['monitor:job:list'],
-    children: [
-      {
-        path: 'index/:jobId(\\d+)',
-        component: () => import('@/views/monitor/job/log'),
-        name: 'JobLog',
-        meta: { title: '调度日志', activeMenu: '/monitor/job' },
-      },
-    ],
-  },
-  {
-    path: '/tool/gen-edit',
-    component: Layout,
-    hidden: true,
-    permissions: ['tool:gen:edit'],
-    children: [
-      {
-        path: 'index/:tableId(\\d+)',
-        component: () => import('@/views/tool/gen/editTable'),
-        name: 'GenEdit',
-        meta: { title: '修改生成配置', activeMenu: '/tool/gen' },
-      },
-    ],
-  },
+  // {
+  //   path: '/system/user-auth',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['system:user:edit'],
+  //   children: [
+  //     {
+  //       path: 'role/:userId(\\d+)',
+  //       component: () => import('@/views/system/user/authRole'),
+  //       name: 'AuthRole',
+  //       meta: { title: '分配角色', activeMenu: '/system/user' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/system/role-auth',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['system:role:edit'],
+  //   children: [
+  //     {
+  //       path: 'user/:roleId(\\d+)',
+  //       component: () => import('@/views/system/role/authUser'),
+  //       name: 'AuthUser',
+  //       meta: { title: '分配用户', activeMenu: '/system/role' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/system/dict-data',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['system:dict:list'],
+  //   children: [
+  //     {
+  //       path: 'index/:dictId(\\d+)',
+  //       component: () => import('@/views/system/dict/data'),
+  //       name: 'Data',
+  //       meta: { title: '字典数据', activeMenu: '/system/dict' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/biz/nav/websites',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['biz:nav:list'],
+  //   children: [
+  //     {
+  //       path: 'index/:id(\\d+)',
+  //       component: () => import('@/views/biz/nav/websites'),
+  //       name: 'Websites',
+  //       meta: { title: '网站数据', activeMenu: '/biz/nav' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/biz/order',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['biz:order:query'],
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/biz/order/index'),
+  //       name: 'OrderManagement',
+  //       meta: { title: '订单管理', activeMenu: '/biz/order' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/biz/payment-order',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['biz:payment:query'],
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/biz/payment/order'),
+  //       name: 'PaymentOrderList',
+  //       meta: { title: '支付订单', activeMenu: '/biz/payment-order' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/biz/payment-channel',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['biz:channel:query'],
+  //   children: [
+  //     {
+  //       path: 'index',
+  //       component: () => import('@/views/biz/payment/channel'),
+  //       name: 'PaymentChannel',
+  //       meta: { title: '支付渠道', activeMenu: '/biz/payment-channel' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/monitor/job-log',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['monitor:job:list'],
+  //   children: [
+  //     {
+  //       path: 'index/:jobId(\\d+)',
+  //       component: () => import('@/views/monitor/job/log'),
+  //       name: 'JobLog',
+  //       meta: { title: '调度日志', activeMenu: '/monitor/job' },
+  //     },
+  //   ],
+  // },
+  // {
+  //   path: '/tool/gen-edit',
+  //   component: Layout,
+  //   hidden: true,
+  //   permissions: ['tool:gen:edit'],
+  //   children: [
+  //     {
+  //       path: 'index/:tableId(\\d+)',
+  //       component: () => import('@/views/tool/gen/editTable'),
+  //       name: 'GenEdit',
+  //       meta: { title: '修改生成配置', activeMenu: '/tool/gen' },
+  //     },
+  //   ],
+  // },
 ]
 
 const router = createRouter({
