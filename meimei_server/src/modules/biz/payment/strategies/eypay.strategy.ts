@@ -36,6 +36,34 @@ fpw3brRN8Xqgr1r2W1JgNTFFvYEJ0zXp1FCP6CoGgnY1pANpM9PF4X/eVBChP+K1
 pQIDAQAB
 -----END PUBLIC KEY-----`
 
+private readonly platformPrimaryKey = `-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCKid0goeWZGpKc
+6o/UsJGYdgeRYX3bpUYE1WhJcX9ilwFEhXh2iXJmR+MCPe/WDE0ZrQokfY2gO4Ck
+nj0+99e1fyXpS/LnJZAzAAG2elaxRXFnmQzPCL8+d15fRDviNEGhLUqfZNxj4rx4
+jOjNXDS60OtyU/Kqpe4k9CKbEXBfEinUNihPPcxJ+e5B/IDhMHTbr/ssnqaWU4Ku
+/dWIQJYfJOTW59XQhDYzKYTsBIQx8ZG0yVUTksYTXaCEI1uwukRXbmMIV4T7tlRu
+hcw4+bsBOT++6kBFCyxPf61NttPn5I4NoICeAbXmxqQXpFPG97Dk2OBAe2Fy5sUl
+jjRlBikjAgMBAAECggEALhMTu9qcJYM054MLOs1OXspCUhN+bCJXWxwuht58Yymd
+flB1c9baeTHHSeOXdDS7H6LxEJnBFF01t4n5DIwY7X/P9/sOWdmgT5Xc+/dMBcD2
+qmG4ZNKf6AKDHGPxFpYSjawmeURuF7o8vEsA0eusjcUVyPwqZJ6yyQ94wuHV4YgD
+sd6GtxK9VrAk6zDQVZBjn0kgQGNoPwckZCAWnPkiV8XdxgMxPy4JbjKjBDIGOUOS
+9byaI7ZM+G9wPOQN2wBenfbaDtPXjfQ8qaLEWmiO+AB35/zGgl/eM5oBIx7bZfxU
+OOSaoES1F2udnWHnR7/g/nNc48G5aeUdD3CCXPk4AQKBgQDx7zpBRqcPGqVw1UOO
+kBKvfdzOtVQBO2g4sGAuG4jaUMimPvnhRZZoZQZfYvbVAjrBO1MaKeUYXlSMdrUV
+ooiBsmvsLG3xqa3tvAePiWzckRYKibK5IXS2kOM+tpPMCiu+8FbsAkUSmCVpJJZQ
+DlwU+F4st41FwGjlpWwHM1QfAQKBgQCSl8SZTtr/aVWTO1Mw6iwWFXcYn0bJOFkj
+PmkY0xetU0R0M0jfU4vvZNoTpjdsDwqIM789fjo8659o8YVDG1Ks0WO3A/cH9BK0
+zgfeSXMbabUt35v9urKwVhNhI/x6BTBxp5cO18lalDNUTrh0RLchmsZlRlPC9FRa
+oajZpPHsIwKBgQDI+QoyeWeDY4Y1IeOZxNLQ10QaroSW9WuRU+rBwnu/p0XW3A+l
+c7ILDIjrqgETV2PJaueQn2bBBHNFr8Kjsz2kR7vhF9NI4cQq7Xx2XxmAbEGcBWDi
+6wjSM6+iQ/aok3ZdibcbHJOWa68AFbWL0THq9Zr9mIiRfdFlmzIPFTN3AQKBgGrO
+AuKEDpFKqJvF/H3GD+rjJsucuJFA6ckA3sfEfRq+cUCMYQq9r1XzT+RDFVw4tT65
+HRvrjPj330QxvBtBnAHn6VPdoq17yelLt3XgY+pUITpUEi5SSYCqpiH/eyNYBoy4
+QxoAZGcHVUKWvFOSAS+NugDttXd0VsVVxVUVlWGrAoGAJKa1hOBNege4MLLQI51b
+rKcUfdpW/m4AyILDWVIm8KZDDkzJnZZYs2gcIxtVGI5acdEFkfh+qGNFyr+Aya1g
+6AcrI47nK1bb0V3wgKXBEZ/GqP1HNPnf2C0rlXUjp5KdNbhThLByfcDmL7Dz2veV
+PauDvfTANojON0RpXG2sFrY=
+-----END PRIVATE KEY-----`
   // 回调 IP 白名单
   private readonly allowedCallbackIPs = [
     '54.233.234.196',
@@ -116,15 +144,18 @@ pQIDAQAB
       const nonce = this.generateNonce();
       const timestamp = Date.now().toString(); // 13位时间戳
       const authorization = this.channelConfig.siteCode;
+      const method = 'post'; // HTTP method in lowercase
+      const queryString = ''; // Empty string for query string as per spec
 
-      // 组装签名数据
-      const signData = `POST\n${nonce}\n${timestamp}\n${authorization}\n${JSON.stringify(requestBody)}`;
+      // 组装签名数据（EYPAY要求格式：method+'\n'+query_string+'\n'+nonce+'\n'+timestamp+'\n'+Authorization+'\n'+request_data）
+      const signData = `${method}\n${queryString}\n${nonce}\n${timestamp}\n${authorization}\n${JSON.stringify(requestBody)}`;
       this.logger.debug(`EYPAY签名数据: ${signData}`);
-      // 生成签名
-      const sign = this.rsaSign(signData, this.channelConfig.platformSecret);
+      // 生成签名 - 使用平台私钥
+      const sign = this.rsaSign(signData, this.platformPrimaryKey);
       this.logger.debug(`EYPAY签名: ${sign}`);
 
-      const validate = this.rsaVerify(signData, sign, this.channelConfig.platformKey);
+      // 验证签名 - 使用平台公钥
+      const validate = this.rsaVerify(signData, sign, this.platformPublicKey);
       console.log(`EYPAY签名验证结果: ${validate}`);
       // 设置请求头
       const headers = {
@@ -150,7 +181,16 @@ pQIDAQAB
       const responseHeaders = response.headers;
       const responseSign = responseHeaders['sign'] || responseHeaders['Sign'];
       if (responseSign) {
-        const responseSignData = `${responseHeaders['nonce']}\n${responseHeaders['timestamp']}\n${responseHeaders['authorization'] || responseHeaders['Authorization']}\n${JSON.stringify(response.data)}`;
+        // 构建响应验签数据（处理大小写不敏感的header）
+        const nonce = responseHeaders['nonce'] || responseHeaders['Nonce'] || '';
+        const timestamp = responseHeaders['timestamp'] || responseHeaders['Timestamp'] || '';
+        const authorization = responseHeaders['authorization'] || responseHeaders['Authorization'] || responseHeaders['AUTHORIZATION'] || '';
+        
+        // 使用严格JSON stringification以确保 consistent formatting
+        const responseDataStr = JSON.stringify(response.data, null, 0);
+        const responseSignData = `${nonce}\n${timestamp}\n${authorization}\n${responseDataStr}`;
+        
+        this.logger.debug(`EYPAY响应验签数据: ${responseSignData}`);
         
         if (!this.rsaVerify(responseSignData, responseSign, this.platformPublicKey)) {
           this.logger.error('EYPAY响应签名验证失败');
