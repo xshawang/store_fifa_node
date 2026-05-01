@@ -136,7 +136,7 @@ PauDvfTANojON0RpXG2sFrY=
       const requestBody = {
         product_desc: params.orderNo,
         user_ip: params.userIp || '127.0.0.1', // 需要从请求中获取真实IP
-        amount: brlAmount.toString(), //字符串格式
+        amount: brlAmount*100, //字符串格式
         time_start: this.formatTimeStart(new Date()),
         description:  'Payment '+params.orderNo,
         trade_type: 'pix',
