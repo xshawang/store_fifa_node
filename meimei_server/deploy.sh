@@ -5,7 +5,7 @@
 # 用法: ./pm2-manage.sh [start|stop|restart|reload|logs|status|monit]
 # ========================================
 echo ' git update new code '
-git pull origin master
+git fetch --all
 
 echo ' npm run build'
 npm run build
