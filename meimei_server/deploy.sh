@@ -1,5 +1,9 @@
 #!/bin/bash
+APP_NAME="meimei_server"
+CONFIG_FILE="ecosystem.config.js"
 
+# 切换到脚本所在目录
+cd "$(dirname "$0")"
 # ========================================
 # PM2 管理脚本 - 支持 start/stop/restart/reload/logs/status
 # 用法: ./pm2-manage.sh [start|stop|restart|reload|logs|status|monit]
@@ -21,11 +25,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-APP_NAME="meimei_server"
-CONFIG_FILE="ecosystem.config.js"
 
-# 切换到脚本所在目录
-cd "$(dirname "$0")"
 
 
 pm2 restart ${CONFIG_FILE}
