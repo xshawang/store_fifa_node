@@ -9,7 +9,7 @@ echo ' git update new code '
 #git reset --hard origin/master
 git pull origin master
 
-chmod u+x ./deploy.sh
+sudo chmod u+x ./deploy.sh
 
 echo ' npm run build'
 npm run build

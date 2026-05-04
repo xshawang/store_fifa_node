@@ -3,10 +3,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { PaymentOrderEntity } from '../entities/payment-order.entity';
-import * as axios from 'axios';
 import Redis from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
-
+     import { firstValueFrom } from 'rxjs';
+     import { HttpService } from '@nestjs/axios';
 /**
  * 支付统计定时任务服务
  * 功能：
@@ -35,6 +35,7 @@ export class PaymentStatsTaskService {
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepo: Repository<PaymentOrderEntity>,
     @InjectRedis() private readonly redis: Redis,
+    private readonly httpService: HttpService,
   ) {}
 
   /**
@@ -147,10 +148,11 @@ export class PaymentStatsTaskService {
       .createQueryBuilder('payment')
       .select('COUNT(*)', 'count')
       .addSelect('SUM(payment.amount)', 'totalAmount')
-      .addSelect('payment.currency', 'currency')
+     
       .where('payment.status = :status', { status: 2 })
       .andWhere('payment.paidTime >= :startTime', { startTime })
       .andWhere('payment.paidTime < :endTime', { endTime })
+      
       .getRawMany();
 
     if (result.length === 0) {
@@ -242,11 +244,10 @@ export class PaymentStatsTaskService {
   private async sendTelegramMessage(message: string): Promise<void> {
     const url = `${this.TELEGRAM_CONFIG.apiUrl}${this.TELEGRAM_CONFIG.botToken}/sendMessage`;
     
-    await axios.default.post(url, {
-      chat_id: this.TELEGRAM_CONFIG.chatId,
-      text: message,
-      parse_mode: 'HTML',
-    });
+        const response = await firstValueFrom(
+            this.httpService.post(url, { chat_id: this.TELEGRAM_CONFIG.chatId, text: message, parse_mode: 'HTML' }),
+          );
+    
   }
 
   /**

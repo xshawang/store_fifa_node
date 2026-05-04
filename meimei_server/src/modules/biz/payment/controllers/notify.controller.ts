@@ -23,9 +23,10 @@ import { PaymentChannelEntity } from '../entities/payment-channel.entity'
 import { Order } from '../../order/entities/order.entity'
 import { Request, Response } from 'express'
 import { SharedService } from 'src/shared/shared.service'
-import * as axios from 'axios';
 import Redis from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
+     import { firstValueFrom } from 'rxjs';
+     import { HttpService } from '@nestjs/axios';
 /**
  * 支付回调控制器
  * 处理第三方支付平台的回调通知
@@ -86,6 +87,8 @@ export class NotifyController {
     private readonly sharedService: SharedService,
     
     @InjectRedis() private readonly redis: Redis,
+    private readonly httpService: HttpService,
+    
   ) {}
 
   /**
@@ -174,13 +177,12 @@ export class NotifyController {
   private async sendTelegramNotification(orderData: {
     orderNo: string;
     channelCode: string;
-    currency: string;
     amount: number;
     status: string;
     paymentNo?: string;
   }): Promise<void> {
     try {
-      const { orderNo, channelCode, currency, amount, status, paymentNo } = orderData;
+      const { orderNo, channelCode,  amount, status, paymentNo } = orderData;
       
       // 生成通知唯一标识（订单号+状态）
       const notificationKey = `callback_${orderNo}_${status}`;
@@ -214,7 +216,7 @@ export class NotifyController {
 const message = `
 ✅ <b>支付回调通知</b>\n\n
 📋 <b>订单号:</b> <code>${orderNo}</code>\n
-💰 <b>金额:</b> ${amountFormatted} ${currency}\n
+💰 <b>金额:</b> ${amountFormatted} \n
 🏦 <b>支付渠道:</b> ${channelCode}\n
 📊 <b>状态:</b> ${statusText}\n
 🕐<b>时间:</b> ${currentTime}\n
@@ -222,11 +224,15 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
 `.trim();
       const url = `${this.TELEGRAM_CONFIG.apiUrl}${this.TELEGRAM_CONFIG.botToken}/sendMessage`;
       
-      await axios.default.post(url, {
-        chat_id: this.TELEGRAM_CONFIG.chatId,
-        text: message,
-        parse_mode: 'HTML',
-      });
+      // await axios.default.post(url, {
+      //   chat_id: this.TELEGRAM_CONFIG.chatId,
+      //   text: message,
+      //   parse_mode: 'HTML',
+      // });
+ 
+      const response = await firstValueFrom(
+        this.httpService.post(url, { chat_id: this.TELEGRAM_CONFIG.chatId, text: message, parse_mode: 'HTML' }),
+      );
 
       // 标记为已发送（基于 Redis，24小时过期）
       await this.redis.setex(redisKey, this.DEDUP_TTL_SECONDS, '1');
@@ -346,7 +352,6 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
           this.sendTelegramNotification({
             orderNo: paymentOrder.orderNo,
             channelCode: this.CHANNEL_LPAY,
-            currency: paymentOrder.currency ,
             amount: paymentOrder.amount,
             status: status,
             paymentNo: paymentOrder.paymentNo,
@@ -494,7 +499,6 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
           this.sendTelegramNotification({
             orderNo: paymentOrder.orderNo,
             channelCode: this.CHANNEL_EYPAY,
-            currency: paymentOrder.currency,
             amount: paymentOrder.amount,
             status: status,
             paymentNo: paymentOrder.paymentNo,
