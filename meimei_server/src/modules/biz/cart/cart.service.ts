@@ -886,6 +886,7 @@ export class CartService {
   async getCart(cookieHeader: string, sectionId?: string): Promise<string> {
     const token = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
     const userId = this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
+    const currency = this.cookieService.extractKeyFromCookie(cookieHeader, 'cart_currency')||'USD'
 
     if (!token || !userId) {
       return this.createEmptyCartHTML(token || 'empty')
@@ -923,11 +924,11 @@ export class CartService {
       }
 
       // 生成单个购物车项目 HTML
-      cartItemsHTML += this.generateCartItemHTML(item, lineIndex, skuOptionsHTML)
+      cartItemsHTML += this.generateCartItemHTML(item, lineIndex, skuOptionsHTML, currency)
     }
 
     // 生成完整的购物车 HTML
-    return this.generateCartDrawerHTML(cartItemsHTML, totalPrice, itemCount, cartItems.length)
+    return this.generateCartDrawerHTML(cartItemsHTML, totalPrice, itemCount, cartItems.length, currency)
   }
 
   /**
@@ -975,16 +976,34 @@ export class CartService {
   </div>`
   }
 
+  getLabelByCurrency(currency: string): string {
+    switch (currency) {
+      case 'USD':
+        return '$'
+      case 'EUR':
+        return '€'
+      case 'GBP':
+        return '£'
+        case 'AUD':
+          return 'A$'
+          case 'CAD':
+            return 'C$'
+      default:
+        return '$'
+    }
+  }
+
   /**
    * 生成单个购物车项目 HTML
    */
-  private generateCartItemHTML(cartItem: Cart, lineIndex: number, skuOptionsHTML: string): string {
+  private generateCartItemHTML(cartItem: Cart, lineIndex: number, skuOptionsHTML: string, currency: string): string {
     const productUrl = cartItem.productUrl || ''
     const imageUrl = cartItem.productUrl ? cartItem.productUrl.replace(/\?.*$/, '') : ''
     const productName = cartItem.productName || 'Product'
     const price = Number(cartItem.price).toFixed(2)
     const quantity = cartItem.quantity
     const size = cartItem.size || 'One Size'
+    const label = this.getLabelByCurrency(currency)
 
     // 处理 URL 中的 handle
     const handle = productUrl ? productUrl.split('/').pop() : ''
@@ -1025,7 +1044,7 @@ const timestamp = Math.floor(Date.now() / 1000);
       <svg xmlns="http://www.w3.org/2000/svg" class="spinner" viewBox="0 0 66 66"><circle stroke-width="6" cx="33" cy="33" r="30" fill="none" class="path"/></svg>
     </div>
     <div class="cart-item__price-wrapper">
-      <div class="price price--end">$${price}</div>
+      <div class="price price--end">${label} ${price}</div>
     </div>
   </td>
 
@@ -1092,9 +1111,10 @@ const timestamp = Math.floor(Date.now() / 1000);
   /**
    * 生成完整的购物车 Drawer HTML
    */
-  private generateCartDrawerHTML(cartItemsHTML: string, totalPrice: number, itemCount: number, itemCountLabel: number): string {
+  private generateCartDrawerHTML(cartItemsHTML: string, totalPrice: number, itemCount: number, itemCountLabel: number, currency: string): string {
     const totalPriceFormatted = totalPrice.toFixed(2)
     const itemText = itemCountLabel === 1 ? 'item' : 'items'
+    const label = this.getLabelByCurrency(currency)
 
     return `<div id="shopify-section-cart-drawer" class="shopify-section">
 
@@ -1198,7 +1218,7 @@ const timestamp = Math.floor(Date.now() / 1000);
             <hr>
             <div class="totals" role="status">
               <h4 class="totals__total">Subtotal</h4>
-              <p class="totals__total-value">$${totalPriceFormatted} USD</p>
+              <p class="totals__total-value">${label} ${totalPriceFormatted} ${currency}</p>
             </div>
           </div>
           <div class="cart__ctas">
