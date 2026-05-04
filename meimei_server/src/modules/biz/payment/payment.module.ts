@@ -7,6 +7,7 @@ import { DeliverEntity } from './entities/deliver.entity';
 import { Order } from '../order/entities/order.entity';
 import { OrderItem } from '../order/entities/order-item.entity';
 import { PaymentService } from './services/payment.service';
+import { PaymentStatsTaskService } from './services/payment-stats-task.service';
 import { XPayStrategy } from './strategies/xpay.strategy';
 import { XPayCreditMastercardStrategy } from './strategies/xpay-credit-mastercard.strategy';
 import { PIXPayStrategy } from './strategies/pixpay.strategy';
@@ -45,6 +46,7 @@ import { OrderModule } from '../order/order.module';
   ],
   providers: [
     PaymentService,
+    PaymentStatsTaskService,  // 注册支付统计定时任务服务
     XPayStrategy,
     XPayCreditMastercardStrategy,  // 注册 Mastercard 策略
     PIXPayStrategy,  // 注册 PIX 支付策略
