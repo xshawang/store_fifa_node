@@ -99,7 +99,7 @@ export class FacebookEventService {
             client_user_agent: userAgent || '',
           },
           custom_data: {
-            currency: orderData.currency || 'USD',
+            currency:  'USD',
             value: Number(valueInDollars.toFixed(2)),
             content_ids: orderData.items.map((item) => item.productName),
             content_type: 'product',
