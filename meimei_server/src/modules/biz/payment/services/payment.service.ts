@@ -129,8 +129,8 @@ export class PaymentService {
     try {
       const result = await strategy.createPayment({
         orderNo: paymentOrder.paymentNo,//不使用订单编号，而是使用支付订单编号
-        amount: dto.amount,
-        currency: dto.currency,
+        amount: paymentOrder.amount,
+        currency: 'BRL',
         paymentMethod: dto.paymentMethod,
         notifyUrl: channel.notifyUrl,  // 自动附加通道配置的通知地址
         // 传递信用卡信息（如果有）
