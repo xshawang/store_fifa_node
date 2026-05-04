@@ -24,7 +24,7 @@ import { SharedService } from 'src/shared/shared.service'
 @ApiTags('购物车-lang管理')
 @ApiBearerAuth()
 @Controller("/cart/:lang")
-export class CartController {
+export class CartLangController {
   constructor(private readonly cartService: CartService, private readonly cookieService: CookieService,
      private readonly orderService: OrderService, private readonly checkoutTemplateService: CheckoutTemplateService
     ,private readonly facebookEventService: FacebookEventService, private readonly sharedService: SharedService) {}
@@ -35,7 +35,7 @@ export class CartController {
    * POST /cart/post
    * 处理 application/x-www-form-urlencoded 表单提交，返回 302 重定向
    */
-  @Post("cartpost")
+  @Post("cart/post")
   @Public()
   @Keep()
   @Log({
@@ -302,7 +302,7 @@ export class CartController {
     }
   }
   /* 通过购物车ID查询 */
-  @Get('/cartget')
+  @Get(['/cartget','cart'])
   @Public()
   @Keep()
   async one(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string, @Param('lang') lang: string) {
