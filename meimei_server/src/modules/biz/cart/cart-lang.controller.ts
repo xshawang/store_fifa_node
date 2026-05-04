@@ -21,9 +21,9 @@ import { CheckoutTemplateService } from './../order/checkout-template.service'
 import { OrderService } from './../order/order.service'
 import { FacebookEventService } from './../order/facebook-event.service'
 import { SharedService } from 'src/shared/shared.service'
-@ApiTags('购物车管理')
+@ApiTags('购物车-lang管理')
 @ApiBearerAuth()
-@Controller()
+@Controller("/cart/:lang")
 export class CartController {
   constructor(private readonly cartService: CartService, private readonly cookieService: CookieService,
      private readonly orderService: OrderService, private readonly checkoutTemplateService: CheckoutTemplateService
@@ -35,7 +35,7 @@ export class CartController {
    * POST /cart/post
    * 处理 application/x-www-form-urlencoded 表单提交，返回 302 重定向
    */
-  @Post(['/cart/post','/pt/cart/post'])
+  @Post("cartpost")
   @Public()
   @Keep()
   @Log({
@@ -46,6 +46,7 @@ export class CartController {
     @Req() request: Request,
     @Body() checkoutPayDto: CheckoutPayDto,
     @Res() response: Response,
+    @Param('lang') lang: string
   ) {
     console.log('==================== /cart/post 或 /pt/cart/post 请求 ====================')
     console.log('收到创建订单请求 (application/x-www-form-urlencoded)')
@@ -53,6 +54,7 @@ export class CartController {
     console.log('Cookie:', request.headers.cookie)
     console.log('IP:', request.ip)
     console.log('Host:', request.get('host'))
+    console.log('lang:', lang)
     console.log('==========================================================')
 
     try {
@@ -123,7 +125,7 @@ export class CartController {
   /* 添加商品到购物车 */
   @UseInterceptors(FilesInterceptor('files'))
   // @RepeatSubmit()
-  @Post(['/cart/add','/pt/cart/add'])
+  @Post(['/cart/add'])
   @Public()
   @Keep()
   @Header('Content-Type', 'text/javascript; charset=utf-8')
@@ -146,10 +148,12 @@ export class CartController {
   async addToCart(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
+    @Param('lang') lang: string
   ) {
     console.debug('addToCart raw body:', request.body)
     console.debug('request headers:', JSON.stringify(request.headers))
     console.log('🍪 请求中的原始 cookie:', request.headers.cookie)
+    console.debug('lang:', lang)
     
     // 直接从 request.body 获取表单参数
     const rawBody = request.body as any
@@ -228,7 +232,7 @@ export class CartController {
   }
 
   /* 修改购物车商品数量 */
-  @Post(['/cart/change','/pt/cart/change'])
+  @Post(['/cart/change'])
   @Public()
   @Header('Content-Type', 'application/json; charset=utf-8')
   @Header('Content-Language', 'en-SG')
@@ -249,9 +253,11 @@ export class CartController {
   })
   async changeCart(
     @Req() request: Request,
+    @Param('lang') lang: string
   ) {
     console.debug('changeCart raw body:', request.body)
     console.log('changeCart request headers:', JSON.stringify(request.headers))
+    console.debug('lang:', lang)
     
     // 从 request.body 获取参数
     const rawBody = request.body as any
@@ -272,25 +278,17 @@ export class CartController {
 
   
 
-  /* 分页查询购物车列表 */
-  @Get('list')
-  @RequiresPermissions('cart:list:query')
-  @ApiPaginatedResponse(Cart)
-  async list(@Query(PaginationPipe) queryDto: QueryCartDto, @Req() request: Request) {
-    const cookieHeader = request.headers.cookie || ''
-    return this.cartService.findAll(queryDto, cookieHeader)
-  }
-
   /* 获取购物车信息（Shopify 格式） - 必须放在 :cartId 之前 */
-  @Get(["/pt/cart.js", "/cart.js"])
+  @Get( "/cart.js")
   @Public()
-  async getCartInfo(@Req() request: Request) {
+  async getCartInfo(@Req() request: Request, @Param('lang') lang: string) {
     console.debug('\n========================================')
     console.debug('=== getCartInfo called ===')
     console.debug('Request URL:', request.url)
     console.debug('Request Method:', request.method)
     console.debug('Request headers:', JSON.stringify(request.headers, null, 2))
     const cookieHeader = request.headers.cookie || ''
+    console.debug('lang:', lang)
     console.debug('Cookie header:', cookieHeader)
     console.debug('========================================\n')
     
@@ -303,85 +301,11 @@ export class CartController {
       throw error
     }
   }
-/* 通过购物车ID查询 */
-  @Get('/pt/cartget')
-  @Public()
-  @Keep()
-  async ptCartget(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string) {
-    console.debug('\n========================================')
-    console.debug('=== getCart called ===', section_id)
-    console.debug('getCart Request URL:', request.url, section_id)
-    console.debug('getCart Request Method:', request.method, section_id)
-    console.debug('getCart Request headers:', JSON.stringify(request.headers, null, 2))
-    const cookieHeader = request.headers.cookie || ''
-    console.log('getCart Cookie header:', cookieHeader)
-    console.debug('========================================\n')
-    
-    try {
-      const html = await this.cartService.getCart(cookieHeader, section_id)
-      
-      // 设置响应头
-      response.set('Content-Type', 'text/html; charset=utf-8')
-      response.set('Content-Language', 'en-SG')
-      response.set('X-Content-Type-Options', 'nosniff')
-      response.set('X-Frame-Options', 'DENY')
-      response.set('X-XSS-Protection', '1; mode=block')
-      response.set('X-Download-Options', 'noopen')
-      response.set('X-Permitted-Cross-Domain-Policies', 'none')
-      response.set('Strict-Transport-Security', 'max-age=7889238')
-      response.set('Vary', 'Accept, Accept-Encoding')
-      
-      // 设置 security headers
-      response.set('Content-Security-Policy', "block-all-mixed-content; frame-ancestors 'none'; upgrade-insecure-requests;")
-      
-      // 设置 Shopify 相关 headers
-      response.set('Powered-By', 'Shopify')
-      response.set('Shopify-Complexity-Score', '0')
-      
-      // 设置 Link header for preconnect
-      response.set('Link', '<https://cdn.shopify.com>; rel="preconnect", <https://cdn.shopify.com>; rel="preconnect"; crossorigin')
-      
-      // 设置 NEL (Network Error Logging)
-      response.set('NEL', JSON.stringify({
-        success_fraction: 0.01,
-        report_to: 'cf-nel',
-        max_age: 604800
-      }))
-      
-      // 设置 cookies（如果需要）
-      const hasUserId = cookieHeader.includes('_shopify_y=')
-      if (!hasUserId) {
-        const crypto = require('crypto')
-        const newUserId = crypto.randomUUID()
-        response.cookie('_shopify_y', newUserId, {
-          domain: '.fifa.com',
-          path: '/',
-          maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
-          sameSite: 'lax'
-        })
-        response.cookie('localization', 'SG', {
-          path: '/',
-          maxAge: 365 * 24 * 60 * 60 * 1000,
-          sameSite: 'lax'
-        })
-        response.cookie('cart_currency', 'USD', {
-          path: '/',
-          maxAge: 14 * 24 * 60 * 60 * 1000, // 14 days
-          sameSite: 'lax'
-        })
-      }
-      
-      response.send(html)
-    } catch (error) {
-      console.error('Error in getCart:', error)
-      response.status(500).send('Internal Server Error')
-    }
-  }
   /* 通过购物车ID查询 */
   @Get('/cartget')
   @Public()
   @Keep()
-  async one(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string) {
+  async one(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string, @Param('lang') lang: string) {
     console.debug('\n========================================')
     console.debug('=== getCart called ===', section_id)
     console.debug('getCart Request URL:', request.url, section_id)
@@ -389,6 +313,7 @@ export class CartController {
     console.debug('getCart Request headers:', JSON.stringify(request.headers, null, 2))
     const cookieHeader = request.headers.cookie || ''
     console.log('getCart Cookie header:', cookieHeader)
+    console.debug('lang:', lang)
     console.debug('========================================\n')
     
     try {
@@ -452,57 +377,7 @@ export class CartController {
     }
   }
 
-  /* 更新购物车项数量 */
-  @RepeatSubmit()
-  @Put()
-  @RequiresPermissions('cart:edit')
-  @Log({
-    title: '购物车管理',
-    businessType: BusinessTypeEnum.update,
-  })
-  async update(
-    @Body() updateCartDto: UpdateCartDto,
-    @User(UserEnum.userName, UserInfoPipe) userName: string,
-  ) {
-    await this.cartService.update(Number(updateCartDto.cartId), updateCartDto)
-  }
-
-  /* 删除购物车项 */
-  @Delete(':cartIds')
-  @RequiresPermissions('cart:remove')
-  @Log({
-    title: '购物车管理',
-    businessType: BusinessTypeEnum.delete,
-  })
-  async delete(@Param('cartIds') cartIds: string) {
-    await this.cartService.remove(cartIds)
-  }
-
-  /* 清空购物车 */
-  @Post('clear')
-  @RequiresPermissions('cart:clear')
-  @Log({
-    title: '购物车管理',
-    businessType: BusinessTypeEnum.delete,
-  })
-  async clear(@Req() request: Request) {
-    const cookieHeader = request.headers.cookie || ''
-    await this.cartService.clearUserCart(cookieHeader)
-  }
+ 
+ 
 }
 
-/* 公开接口：前端用户查询自己的购物车 */
-@ApiTags('购物车展示')
-@Controller('cart')
-export class PublicCartController {
-  constructor(private readonly cartService: CartService) {}
-
-  /* 查询当前用户的购物车列表（无需鉴权） */
-  @Get('list')
-  @Public()
-  @ApiPaginatedResponse(Cart)
-  async list(@Query(PaginationPipe) queryDto: QueryCartDto, @Req() request: Request) {
-    const cookieHeader = request.headers.cookie || ''
-    return this.cartService.findAll(queryDto, cookieHeader)
-  }
-}

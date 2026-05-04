@@ -46,6 +46,7 @@ export class CreateCartDto {
   @IsOptional()
   @IsNumber()
   quantity?: number
+ 
 }
 
 export class UpdateCartDto {

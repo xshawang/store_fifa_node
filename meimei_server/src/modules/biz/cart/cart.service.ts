@@ -30,7 +30,8 @@ export class CartService {
     // 从 cookie 中提取用户标识和 token
     let userId = this.cookieService.extractKeyFromCookie(cookieHeader, "_shopify_y");
     let token = this.cookieService.extractKeyFromCookie(cookieHeader, "cart");
-    console.log('add to cart userId:', userId, 'token:', token)
+    let currency = this.cookieService.extractKeyFromCookie(cookieHeader, "cart_currency");
+    console.log('add to cart userId:', userId, 'token:', token, 'currency:', currency)
     
     // 如果 userId 不存在或为空字符串，生成新的
     if (!userId || userId.trim() === '') {
