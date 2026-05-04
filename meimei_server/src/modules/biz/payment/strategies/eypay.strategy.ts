@@ -125,18 +125,12 @@ PauDvfTANojON0RpXG2sFrY=
    */
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
     this.logger.log(`EYPAY创建订单: ${params.orderNo}`);
- //转换成 BRL
-    const USD_TO_BRL_RATE = 5.0;
-    const brlAmount = params.amount * USD_TO_BRL_RATE;
-    
-    this.logger.log(`LPAY 订单金额: ${params.amount} USD BRL Amount: ${brlAmount}`);
-
     try {
       // 构建请求体参数
       const requestBody = {
         product_desc: params.orderNo,
         user_ip: params.userIp || '127.0.0.1', // 需要从请求中获取真实IP
-        amount: brlAmount*100, //字符串格式
+        amount: params.amount*100, //字符串格式
         time_start: this.formatTimeStart(new Date()),
         description:  'Payment '+params.orderNo,
         trade_type: 'pix',

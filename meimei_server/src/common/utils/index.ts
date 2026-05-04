@@ -26,7 +26,7 @@ const EXCHANGE_RATES: Record<string, number> = {
  */
 export function convertToBrl(amount: number, fromCurrency: string) {
   const currencyCode = fromCurrency.toUpperCase();
-  const rate = EXCHANGE_RATES[currencyCode] || 1;
+  const rate = EXCHANGE_RATES[currencyCode] || 5;
   const brl = amount * rate;
 
   return {

@@ -77,16 +77,11 @@ export class LPayStrategy implements PaymentStrategy {
    */
   async createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult> {
     this.logger.log(`LPAY创建订单: ${JSON.stringify(params)}`);
-    //转换成 BRL
-    const USD_TO_BRL_RATE = 5.0;
-    const brlAmount = params.amount * USD_TO_BRL_RATE;
-    
-    this.logger.log(`LPAY 订单金额: ${params.amount} USD BRL Amount: ${brlAmount}`);
 
     try {
       // 构建请求参数
       const requestData: any = {
-        amount: brlAmount,
+        amount: params.amount,
         merchant_order_no: params.orderNo,
         api_key: this.channelConfig.platformKey,
         code: this.channelConfig.siteCode,

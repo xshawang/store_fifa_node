@@ -11,6 +11,7 @@ import {OrderItem} from '../../order/entities/order-item.entity';
 import { QueryPaymentOrderDto, QueryPaymentChannelDto, CreatePaymentChannelDto, UpdatePaymentChannelDto } from '../dto/query-payment.dto';
 import { PaginatedDto } from 'src/common/dto/paginated.dto';
 import { ApiException } from 'src/common/exceptions/api.exception';
+import {convertToBrl} from 'src/common/utils';
 /**
  * 支付核心服务
  */
@@ -44,7 +45,7 @@ export class PaymentService {
    */
   async createPayment(dto: CreatePaymentDto) {
     //目前都是BRL支付
-    dto.currency = 'BRL';
+   
     this.logger.log(`创建支付订单: ${dto.orderNo} ${dto.userId} ${dto.amount} ${dto.currency} ${dto.paymentMethod}`);
 
     // 1. 查询订单是否存在
@@ -60,7 +61,7 @@ export class PaymentService {
     // 2. 自动选择支付通道（根据支付方式和金额、货币）
     const channel = await this.selectPaymentChannel(
       dto.amount,
-      dto.currency,
+      'BRL',
       dto.paymentMethod,
     );
 
@@ -80,8 +81,8 @@ export class PaymentService {
     paymentOrder.paymentNo = this.generatePaymentNo();
     paymentOrder.orderNo = dto.orderNo;
     paymentOrder.userId = dto.userId;
-    paymentOrder.amount = dto.amount;
-    paymentOrder.currency = dto.currency;
+    paymentOrder.amount = convertToBrl(dto.amount, dto.currency).brl  as number;
+    paymentOrder.currency = 'BRL';
     paymentOrder.status = 0; // 待支付
     paymentOrder.paymentChannel = channel.channelCode;  // 自动附加
     paymentOrder.paymentMethod = dto.paymentMethod;
