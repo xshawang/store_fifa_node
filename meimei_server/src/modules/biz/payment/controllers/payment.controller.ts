@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PaymentService } from '../services/payment.service';
+import { PaymentStatsTaskService } from '../services/payment-stats-task.service';
 import { CreatePaymentDto } from '../dto/create-payment.dto';
 import { AppConfig } from '../../../../common/contants/app.config';
 import { DataObj } from 'src/common/class/data-obj.class'
@@ -50,8 +51,13 @@ export class PaymentController {
     apiUrl: 'https://api.telegram.org/bot',
   };
 
-  constructor(private readonly paymentService: PaymentService, private readonly cookieService: CookieService, 
-    private readonly checkoutTemplateService: CheckoutTemplateService, private readonly cartService: CartService) {}
+  constructor(
+    private readonly paymentService: PaymentService, 
+    private readonly cookieService: CookieService, 
+    private readonly checkoutTemplateService: CheckoutTemplateService, 
+    private readonly cartService: CartService,
+    private readonly paymentStatsTaskService: PaymentStatsTaskService,
+  ) {}
 
 
   // 信用卡支付失败以后，跳转展示的PIX支付结算页面
@@ -632,60 +638,57 @@ export class PaymentController {
   }
 
   /**
-   * 发送 Telegram 通知
-   * @param orderData 订单数据
+   * 手动触发每小时支付统计任务（测试用）
+   * GET /api/payment/test/hourly-stats
    */
-  private async sendTelegramNotification(orderData: {
-    orderNo: string;
-    currency: string;
-    amount: number;
-    itemCount: number;
-    paymentNo?: string;
-  }): Promise<void> {
+  @Get('/payment/test/hourly-stats')
+  @Public()
+  @Keep()
+  @ApiOperation({ summary: '手动触发每小时支付统计任务（测试用）' })
+  async testHourlyStats() {
     try {
-      const { orderNo, currency, amount, itemCount, paymentNo } = orderData;
-      
-      // 格式化金额（假设金额是分，转换为元）
-      const amountFormatted = (amount / 100).toFixed(2);
-      
-      // 格式化时间
-      const currentTime = new Date().toLocaleString('zh-CN', { 
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false 
-      });
-
-      // 构建 Markdown 格式的消息
-      const message = `
-🛒 *新支付订单通知*
-
-📋 *订单号:* \`${orderNo}\`
-💰 *金额:* ${amountFormatted} ${currency}
-🕐 *时间:* ${currentTime}
-${paymentNo ? `🔖 *支付编号:* \`${paymentNo}\`` : ''}
-      `.trim();
-
-      // 构建 Telegram API URL
-      const url = `${this.TELEGRAM_CONFIG.apiUrl}${this.TELEGRAM_CONFIG.botToken}/sendMessage`;
-      
-      // 发送请求
-      const response = await axios.post(url, {
-        chat_id: this.TELEGRAM_CONFIG.chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      });
-
-      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}`, response.data);
+      this.logger.log('手动触发每小时支付统计任务...');
+      await this.paymentStatsTaskService.handleHourlyStats();
+      return {
+        success: true,
+        message: '每小时支付统计任务已执行',
+        timestamp: new Date().toISOString(),
+      };
     } catch (error: any) {
-      this.logger.error(
-        `发送 Telegram 通知失败 - 订单号: ${orderData.orderNo}`,
-        error.response?.data || error.message,
-      );
+      this.logger.error('手动触发每小时支付统计任务失败:', error);
+      return {
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      };
     }
   }
+
+  /**
+   * 手动触发每日支付汇总任务（测试用）
+   * GET /api/payment/test/daily-stats
+   */
+  @Get('/payment/test/daily-stats')
+  @Public()
+  @Keep()
+  @ApiOperation({ summary: '手动触发每日支付汇总任务（测试用）' })
+  async testDailyStats() {
+    try {
+      this.logger.log('手动触发每日支付汇总任务...');
+      await this.paymentStatsTaskService.handleDailyStats();
+      return {
+        success: true,
+        message: '每日支付汇总任务已执行',
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error('手动触发每日支付汇总任务失败:', error);
+      return {
+        success: false,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+  
 }
