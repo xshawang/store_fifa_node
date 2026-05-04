@@ -64,7 +64,7 @@ export class FacebookEventService {
     // 将金额从分转换为元（如果是以分为单位）
     const valueInDollars = orderData.totalAmount
 
-    this.logger.log('发送 Facebook 事件 - 订单号:',  orderData.orderNo)
+    this.logger.log('发送 Facebook 事件 :', JSON.stringify(orderData))
     const eventData = {
       data: [
         {
