@@ -5,10 +5,27 @@ import * as crypto from 'crypto'
 @Injectable()
 export class FacebookEventService {
   private readonly logger = new Logger(FacebookEventService.name)
-  private readonly PIXEL_ID = '1913741385946898'
-  private readonly ACCESS_TOKEN =
-    'EAAWLXII6tQcBRQY1GWej5VQPrfT4QZBXcZCadNaE4ZCb6T7NFum2fbLPDk3rPn2wbZCS8vciwq4cZCase2bQOwezxM8EMOTcfjBVQhHGGshB9FGEdCzAqG5zBstYSfvugs33RZAZAbtXt1gUEu5BGy9N9LMzyGBRdLA2R2hWzojxuhZBZCbst23eRqY5He6O9T34ZC8QZDZD'
-  private readonly TEST_CODE = 'TEST91962'
+  
+  // 不同环境的 Facebook 配置
+  private readonly FACEBOOK_CONFIGS = {
+    'store.fafbuy.store': {
+      PIXEL_ID: '1499659318285286',
+      ACCESS_TOKEN: 'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
+      TEST_CODE: 'TEST91962',
+    },
+    'default': {
+      PIXEL_ID: '818970384169351',
+      ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
+      TEST_CODE: 'TEST44758',
+    },
+    // 添加其他环境的配置
+    // 'localhost:3000': {
+    //   PIXEL_ID: '测试环境PIXEL_ID',
+    //   ACCESS_TOKEN: '测试环境ACCESS_TOKEN',
+    // },
+  }
+  
+
 
   /**
    * 发送 Purchase 事件到 Facebook
@@ -59,7 +76,11 @@ export class FacebookEventService {
     userAgent: string,
     host:string
   ): Promise<void> {
-    const url = `https://graph.facebook.com/v19.0/${this.PIXEL_ID}/events?access_token=${this.ACCESS_TOKEN}`
+    // 根据 host 获取对应的 Facebook 配置
+    const requestHost = host || 'default'
+    const config = this.FACEBOOK_CONFIGS[host] || this.FACEBOOK_CONFIGS['store.fafbuy.store']
+    this.logger.log(requestHost ,' 发送 Facebook 事件 - 配置:', JSON.stringify(config))
+    const url = `https://graph.facebook.com/v19.0/${config.PIXEL_ID}/events?access_token=${config.ACCESS_TOKEN}`
 
     // 将金额从分转换为元（如果是以分为单位）
     const valueInDollars = orderData.totalAmount
