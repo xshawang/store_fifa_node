@@ -4,7 +4,7 @@ import { SnowFlake } from './snowflake'
 const idWorker = new SnowFlake(1n, 1n)
 const USD_TO_BRL_RATE = 5;
 export function formatBRL(value: number) {
-  return new Intl.NumberFormat("pt-BR", {
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "BRL",
   }).format(value);
