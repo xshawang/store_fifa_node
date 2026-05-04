@@ -22,6 +22,11 @@ export class PaymentStatsTaskService {
     apiUrl: 'https://api.telegram.org/bot',
   };
 
+  // 通知去重记录（使用 Set 存储已发送的通知标识）
+  private readonly sentNotifications = new Set<string>();
+  // 去重记录过期时间（24小时，防止内存泄漏）
+  private readonly DEDUP_EXPIRE_HOURS = 24;
+
   constructor(
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepo: Repository<PaymentOrderEntity>,
@@ -49,16 +54,33 @@ export class PaymentStatsTaskService {
         return;
       }
 
+      // 生成通知唯一标识（类型+时间段）
+      const notificationKey = `hourly_${this.formatDateHour(previousHour)}`;
+      
+      // 检查是否已发送过
+      if (this.isNotificationSent(notificationKey)) {
+        this.logger.log(`每小时统计通知已发送，跳过 - 时间段: ${this.formatDateHour(previousHour)}`);
+        return;
+      }
+
       this.logger.log(`前一小时支付统计 - 订单数: ${stats.count}, 金额: ${stats.totalAmount}`);
 
       // 发送 Telegram 通知
-      await this.sendHourlyTelegramNotification({
+      const sent = await this.sendHourlyTelegramNotification({
         startTime: previousHour,
         endTime: currentHour,
         count: stats.count,
         totalAmount: stats.totalAmount,
         currency: stats.currency,
       });
+
+      // 记录已发送
+      if (sent) {
+        this.markNotificationSent(notificationKey);
+      }
+
+      // 清理过期记录
+      this.cleanExpiredNotifications();
     } catch (error) {
       this.logger.error('每小时支付统计任务执行失败:', error);
     }
@@ -86,15 +108,32 @@ export class PaymentStatsTaskService {
         return;
       }
 
+      // 生成通知唯一标识（类型+日期）
+      const notificationKey = `daily_${this.formatDateOnly(yesterdayStart)}`;
+      
+      // 检查是否已发送过
+      if (this.isNotificationSent(notificationKey)) {
+        this.logger.log(`每日汇总通知已发送，跳过 - 日期: ${this.formatDateOnly(yesterdayStart)}`);
+        return;
+      }
+
       this.logger.log(`昨天支付统计 - 订单数: ${stats.count}, 金额: ${stats.totalAmount}`);
 
       // 发送 Telegram 通知
-      await this.sendDailyTelegramNotification({
+      const sent = await this.sendDailyTelegramNotification({
         date: yesterdayStart,
         count: stats.count,
         totalAmount: stats.totalAmount,
         currency: stats.currency,
       });
+
+      // 记录已发送
+      if (sent) {
+        this.markNotificationSent(notificationKey);
+      }
+
+      // 清理过期记录
+      this.cleanExpiredNotifications();
     } catch (error) {
       this.logger.error('每日支付统计任务执行失败:', error);
     }
@@ -130,6 +169,7 @@ export class PaymentStatsTaskService {
 
   /**
    * 发送每小时统计 Telegram 通知
+   * @returns 是否发送成功
    */
   private async sendHourlyTelegramNotification(data: {
     startTime: Date;
@@ -137,7 +177,7 @@ export class PaymentStatsTaskService {
     count: number;
     totalAmount: number;
     currency: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     try {
       const { startTime, endTime, count, totalAmount, currency } = data;
       const amountFormatted = totalAmount.toFixed(2);
@@ -153,23 +193,26 @@ export class PaymentStatsTaskService {
 
       await this.sendTelegramMessage(message);
       this.logger.log(`每小时统计通知发送成功 - 时间段: ${timeRange}`);
+      return true;
     } catch (error: any) {
       this.logger.error(
         '发送每小时统计通知失败:',
         error.response?.data || error.message,
       );
+      return false;
     }
   }
 
   /**
    * 发送每日统计 Telegram 通知
+   * @returns 是否发送成功
    */
   private async sendDailyTelegramNotification(data: {
     date: Date;
     count: number;
     totalAmount: number;
     currency: string;
-  }): Promise<void> {
+  }): Promise<boolean> {
     try {
       const { date, count, totalAmount, currency } = data;
       const amountFormatted = totalAmount.toFixed(2);
@@ -185,11 +228,13 @@ export class PaymentStatsTaskService {
 
       await this.sendTelegramMessage(message);
       this.logger.log(`每日汇总通知发送成功 - 日期: ${dateStr}`);
+      return true;
     } catch (error: any) {
       this.logger.error(
         '发送每日汇总通知失败:',
         error.response?.data || error.message,
       );
+      return false;
     }
   }
 
@@ -232,5 +277,36 @@ export class PaymentStatsTaskService {
    */
   private formatDate(date: Date): string {
     return date.toISOString().replace('T', ' ').substring(0, 19);
+  }
+
+  /**
+   * 检查通知是否已发送
+   * @param key 通知唯一标识
+   */
+  private isNotificationSent(key: string): boolean {
+    return this.sentNotifications.has(key);
+  }
+
+  /**
+   * 标记通知已发送
+   * @param key 通知唯一标识
+   */
+  private markNotificationSent(key: string): void {
+    this.sentNotifications.add(key);
+    this.logger.debug(`标记通知已发送: ${key}，当前去重记录数: ${this.sentNotifications.size}`);
+  }
+
+  /**
+   * 清理过期的去重记录（防止内存泄漏）
+   * 注意：由于 Set 无法直接获取添加时间，这里采用简单策略
+   * 如果记录数超过阈值（1000条），清空所有记录
+   */
+  private cleanExpiredNotifications(): void {
+    const MAX_RECORDS = 1000;
+    
+    if (this.sentNotifications.size > MAX_RECORDS) {
+      this.logger.warn(`去重记录数过多（${this.sentNotifications.size}），清空所有记录`);
+      this.sentNotifications.clear();
+    }
   }
 }

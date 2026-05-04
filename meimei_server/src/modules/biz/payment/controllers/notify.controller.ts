@@ -64,6 +64,9 @@ export class NotifyController {
     apiUrl: 'https://api.telegram.org/bot',
   };
 
+  // 通知去重记录
+  private readonly sentNotifications = new Set<string>();
+
   constructor(
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepo: Repository<PaymentOrderEntity>,
@@ -170,6 +173,16 @@ export class NotifyController {
   }): Promise<void> {
     try {
       const { orderNo, channelCode, currency, amount, status, paymentNo } = orderData;
+      
+      // 生成通知唯一标识（订单号+状态）
+      const notificationKey = `callback_${orderNo}_${status}`;
+      
+      // 检查是否已发送过
+      if (this.sentNotifications.has(notificationKey)) {
+        this.logger.log(`支付回调通知已发送，跳过 - 订单号: ${orderNo}`);
+        return;
+      }
+
       const amountFormatted = (amount / 100).toFixed(2);
       const currentTime = new Date().toLocaleString('zh-CN', { 
         timeZone: 'Asia/Shanghai',
@@ -205,12 +218,29 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
         parse_mode: 'HTML',
       });
 
-      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}`);
+      // 标记为已发送
+      this.sentNotifications.add(notificationKey);
+      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}，当前去重记录数: ${this.sentNotifications.size}`);
+      
+      // 清理过期记录
+      this.cleanExpiredNotifications();
     } catch (error: any) {
       this.logger.error(
         `发送 Telegram 通知失败 - 订单号: ${orderData.orderNo}`,
         error.response?.data || error.message,
       );
+    }
+  }
+
+  /**
+   * 清理过期的去重记录（防止内存泄漏）
+   */
+  private cleanExpiredNotifications(): void {
+    const MAX_RECORDS = 1000;
+    
+    if (this.sentNotifications.size > MAX_RECORDS) {
+      this.logger.warn(`去重记录数过多（${this.sentNotifications.size}），清空所有记录`);
+      this.sentNotifications.clear();
     }
   }
 
@@ -321,7 +351,7 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
           this.sendTelegramNotification({
             orderNo: paymentOrder.orderNo,
             channelCode: this.CHANNEL_LPAY,
-            currency: paymentOrder.currency || 'BRL',
+            currency: paymentOrder.currency ,
             amount: paymentOrder.amount,
             status: status,
             paymentNo: paymentOrder.paymentNo,
@@ -413,11 +443,11 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
 
       // 4. IP 白名单验证（可选）
       const clientIP = this.sharedService.getReqIP(request)
-      const allowedIPs = channel.config?.allowed_ips || [];
+      // const allowedIPs = channel.config?.allowed_ips || [];
       
-      if (allowedIPs.length > 0 && !allowedIPs.includes(clientIP)) {
-        this.logger.warn(`EYPAY回调IP不在白名单: ${clientIP}`);
-      }
+      // if (allowedIPs.length > 0 && !allowedIPs.includes(clientIP)) {
+      //   this.logger.warn(`EYPAY回调IP不在白名单: ${clientIP}`);
+      // }
 
       // 5. 查找支付订单
       const paymentOrder = await this.paymentOrderRepo.findOne({
@@ -465,11 +495,11 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
         );
 
         // 9. 异步发送 Telegram 通知（仅支付成功时）
-        if (status === 'SUCCESS' && orderUpdated) {
+        if (status === 'SUCCESS') {
           this.sendTelegramNotification({
             orderNo: paymentOrder.orderNo,
             channelCode: this.CHANNEL_EYPAY,
-            currency: paymentOrder.currency || 'BRL',
+            currency: paymentOrder.currency,
             amount: paymentOrder.amount,
             status: status,
             paymentNo: paymentOrder.paymentNo,
