@@ -33,7 +33,8 @@ import { FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express'
 import { CookieService } from './../../cart/cart-cookie.service'
 import { CheckoutTemplateService } from './../../order/checkout-template.service'
 import { CartService } from './../../cart/cart.service'
-import axios from 'axios'
+import { convertToBrl } from './../../../../common/utils'
+
 
 /**
  * 支付控制器
@@ -98,7 +99,7 @@ export class PaymentController {
       }
       
       //这里需要把USD 改为BRL
-      orderData.currency = 'BRL';
+      ///orderData.currency = 'BRL';
       
       // 3. 动态生成 Checkout HTML（注入订单数据）
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,false)
@@ -331,10 +332,11 @@ export class PaymentController {
       // 4. 创建支付订单（PaymentService 会自动选择通道并附加通道信息）
       let paymentResult;
       
+      //需要转换成brl
       try {
         paymentResult = await this.paymentService.createPayment({
           orderNo: checkoutPayDto.v,
-          amount: orderInfo.totalAmount,
+          amount: convertToBrl(orderInfo.totalAmount, orderInfo.currency).brl,
           currency: orderInfo.currency,
           paymentMethod: 'CREDIT_CARD',  // 支付方式，Service 会根据此值自动选择通道
           userId: '',

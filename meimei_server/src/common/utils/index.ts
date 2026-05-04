@@ -9,16 +9,38 @@ export function formatBRL(value: number) {
     currency: "BRL",
   }).format(value);
 }
-export function usdToBrl(amountUsd: number) {
-  const brl = amountUsd * USD_TO_BRL_RATE;
+// 汇率配置 (实际生产建议从 API 获取并定时更新)
+const EXCHANGE_RATES: Record<string, number> = {
+  USD: 5.0,
+  EUR: 5.82,
+  CAD: 3.65,
+  AUD: 3.57,
+  BRL: 1.0, // 基准
+};
+
+
+/**
+ * 通用换算函数
+ * @param amount 金额
+ * @param fromCurrency 原始币种 (如 'USD', 'EUR')
+ */
+export function convertToBrl(amount: number, fromCurrency: string) {
+  const currencyCode = fromCurrency.toUpperCase();
+  const rate = EXCHANGE_RATES[currencyCode] || 1;
+  const brl = amount * rate;
 
   return {
-    rate: USD_TO_BRL_RATE,
-    usd: amountUsd,
+    rate,
+    originalAmount: amount,
+    originalCurrency: currencyCode,
     brl,
     formatted: formatBRL(brl),
   };
 }
+
+// 使用示例
+// const result = convertToBrl(100, 'USD');
+// console.log(result.formatted); // 输出: "R$ 497,00"
 /**
  * 获取雪花id
  */

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as fs from 'fs/promises'
 import * as path from 'path'
-import { usdToBrl } from './../../../common/utils'
+import { convertToBrl } from './../../../common/utils'
 
 
 /**
@@ -246,7 +246,7 @@ export class CheckoutTemplateService implements OnModuleInit {
             class="_6zbcq52d _6zbcq52c _1fragem3c _1fragem4b _6zbcq51x _6zbcq51u _1fragem8r _6zbcq51r _6zbcq51p _1fragemu2">
             <div class="_17kya4u1q _1fragem4b _1fragemty _1fragem3c _1fragemt6 Byb5s">
                 <span translate="no"
-                    class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate">R$`+ usdToBrl(Number(priceInDollars)).brl+` (BRL)</span>
+                    class="_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate">`+convertToBrl(Number(priceInDollars), orderData.currency).formatted+` </span>
             </div>
         </div>`
         }else{
@@ -295,7 +295,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       let secondSubstr = afterSubstr.substring(afterSubstr.indexOf('<'));
 
       if(FLAG_BRL){
-           html = beforeSubstr + 'R$'+usdToBrl(Number(totalInDollars)).brl+` (BRL)` + secondSubstr
+           html = beforeSubstr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondSubstr
       }else{
            html = beforeSubstr + '$'+totalInDollars + ' ' + secondSubstr
       }
@@ -314,7 +314,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       const afterMobileSubStr = html.substring(indexMobileSubStr+mobileSubStr.length+2);
       let secondMobileSubStr = afterMobileSubStr.substring(afterMobileSubStr.indexOf('<'));
       if(FLAG_BRL){
-         html = beforeMobileSubStr + 'R$'+usdToBrl(Number(totalInDollars)).brl+` (BRL)` + secondMobileSubStr
+         html = beforeMobileSubStr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondMobileSubStr
       }else{
          html = beforeMobileSubStr + '$'+totalInDollars + ' ' + secondMobileSubStr
       }
@@ -334,7 +334,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       let secondSubstrt = afterSubstrt.substring( afterSubstrt.indexOf('<'));
 
        if(FLAG_BRL){
-         html  = beforeSubstrt + 'R$'+usdToBrl(Number(totalInDollars)).brl +  secondSubstrt
+         html  = beforeSubstrt + convertToBrl(Number(totalInDollars), orderData.currency).formatted +  secondSubstrt
        }else{
          html  = beforeSubstrt + '$'+totalInDollars + ' ' + secondSubstrt
        }

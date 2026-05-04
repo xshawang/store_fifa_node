@@ -47,6 +47,7 @@ export class OrderService {
     token: string,
     checkoutPayDto: CheckoutPayDto,
     ipAddress: string,
+    currency: string,
   ): Promise<{ 
     orderNo: string,
     orderId: number,
@@ -127,8 +128,7 @@ export class OrderService {
       discountAmount: 0, // TODO: 根据折扣码计算
       totalAmount: subtotalAmount, // 小计 + 配送 + 税费 - 折扣
       paidAmount: 0,
-      currency: 'USD',
-      
+      currency: currency||'USD',      
       // 收货信息
       email: checkoutPayDto.email,
       countryCode: checkoutPayDto.countryCode,

@@ -60,6 +60,7 @@ export class CartController {
       const cookieHeader = request.headers.cookie || ''
       const userId = await this.cookieService.extractKeyFromCookie(cookieHeader, '_shopify_y')
       const token = await this.cookieService.extractKeyFromCookie(cookieHeader, 'cart')
+      const currency = await this.cookieService.extractKeyFromCookie(cookieHeader, 'cart_currency') || 'USD'
 
       if (!userId || !token) {
         console.error('❌ 缺少用户标识或token')
@@ -77,9 +78,10 @@ export class CartController {
         token,
         checkoutPayDto,
         ipAddress,
+        currency
       )
 
-      orderData.currency = 'BRL'  
+     
       console.log('✅ 订单创建成功, orderNo:', orderData.orderNo)
       console.log('📦 订单商品数量:', orderData.itemCount)
       console.log('💰 订单总金额:', orderData.totalAmount)
