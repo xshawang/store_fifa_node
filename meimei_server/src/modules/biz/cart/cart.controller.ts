@@ -107,8 +107,8 @@ export class CartController {
       // 5. 动态生成 Checkout HTML（注入订单数据）
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,true)
 
-      console.log('📄 已生成 Checkout HTML 页面')
-      console.log('🔗 支付 URL:', `https://store.fafbuy.store/checkout/pay?v=${orderData.orderNo}`)
+      console.debug('📄 已生成 Checkout HTML 页面')
+      console.debug('🔗 支付 URL:', `https://store.fafbuy.store/checkout/pay?v=${orderData.orderNo}`)
 
       // 6. 返回 HTML 响应（不再 302 重定向）
       response.setHeader('Content-Type', 'text/html; charset=utf-8')
@@ -147,8 +147,8 @@ export class CartController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    console.log('addToCart raw body:', request.body)
-    console.log('request headers:', JSON.stringify(request.headers))
+    console.debug('addToCart raw body:', request.body)
+    console.debug('request headers:', JSON.stringify(request.headers))
     console.log('🍪 请求中的原始 cookie:', request.headers.cookie)
     
     // 直接从 request.body 获取表单参数
@@ -162,13 +162,13 @@ export class CartController {
     // 处理 Size-1 可能被 URL 编码的情况
     // 尝试多种可能的键名：'Size-1', 'Size-1\r\n', 'Size-1%0D%0A', 或任何包含 'Size-1' 的键
     let sizeValue = rawBody['Size-1'] || rawBody['Size-1\r\n'] || rawBody['Size-1%0D%0A']
-    console.log('🔍 直接查找 Size-1 结果:', sizeValue)
+    console.debug('🔍 直接查找 Size-1 结果:', sizeValue)
     
     // 如果还是没找到，遍历所有 keys 查找包含 'Size-1' 的键
     if (!sizeValue) {
-      console.log('🔍 未找到 Size-1，开始遍历所有 keys...')
+      console.debug('🔍 未找到 Size-1，开始遍历所有 keys...')
       for (const key of Object.keys(rawBody)) {
-        console.log(`  检查 key: "${key}"`)
+        console.debug(`  检查 key: "${key}"`)
         if (key.includes('Size-1')) {
           sizeValue = rawBody[key]
           console.log(`✅ 找到 Size-1 值，键名: "${key}", 值: "${sizeValue}"`)
@@ -192,7 +192,7 @@ export class CartController {
     
     // 如果是新生成的 cart token，写入 cookie
     if (cart['_isNewToken']) {
-      console.log('🍪 设置 cart cookie:', cart.token)
+      console.debug('🍪 设置 cart cookie:', cart.token)
       
       // 根据请求来源动态设置 domain
       const host = request.headers.host || '';
@@ -252,7 +252,7 @@ export class CartController {
   async changeCart(
     @Req() request: Request,
   ) {
-    console.log('changeCart raw body:', request.body)
+    console.debug('changeCart raw body:', request.body)
     console.log('changeCart request headers:', JSON.stringify(request.headers))
     
     // 从 request.body 获取参数
@@ -287,14 +287,14 @@ export class CartController {
   @Get(["/pt/cart.js", "/cart.js"])
   @Public()
   async getCartInfo(@Req() request: Request) {
-    console.log('\n========================================')
-    console.log('=== getCartInfo called ===')
-    console.log('Request URL:', request.url)
-    console.log('Request Method:', request.method)
-    console.log('Request headers:', JSON.stringify(request.headers, null, 2))
+    console.debug('\n========================================')
+    console.debug('=== getCartInfo called ===')
+    console.debug('Request URL:', request.url)
+    console.debug('Request Method:', request.method)
+    console.debug('Request headers:', JSON.stringify(request.headers, null, 2))
     const cookieHeader = request.headers.cookie || ''
-    console.log('Cookie header:', cookieHeader)
-    console.log('========================================\n')
+    console.debug('Cookie header:', cookieHeader)
+    console.debug('========================================\n')
     
     try {
       const cartInfo = await this.cartService.getCartInfo(cookieHeader)
@@ -310,14 +310,14 @@ export class CartController {
   @Public()
   @Keep()
   async ptCartget(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string) {
-    console.log('\n========================================')
-    console.log('=== getCart called ===', section_id)
-    console.log('getCart Request URL:', request.url, section_id)
-    console.log('getCart Request Method:', request.method, section_id)
-    console.log('getCart Request headers:', JSON.stringify(request.headers, null, 2))
+    console.debug('\n========================================')
+    console.debug('=== getCart called ===', section_id)
+    console.debug('getCart Request URL:', request.url, section_id)
+    console.debug('getCart Request Method:', request.method, section_id)
+    console.debug('getCart Request headers:', JSON.stringify(request.headers, null, 2))
     const cookieHeader = request.headers.cookie || ''
     console.log('getCart Cookie header:', cookieHeader)
-    console.log('========================================\n')
+    console.debug('========================================\n')
     
     try {
       const html = await this.cartService.getCart(cookieHeader, section_id)
@@ -384,14 +384,14 @@ export class CartController {
   @Public()
   @Keep()
   async one(@Req() request: Request, @Res({ passthrough: false }) response: any, @Param('section_id') section_id: string) {
-    console.log('\n========================================')
-    console.log('=== getCart called ===', section_id)
-    console.log('getCart Request URL:', request.url, section_id)
-    console.log('getCart Request Method:', request.method, section_id)
-    console.log('getCart Request headers:', JSON.stringify(request.headers, null, 2))
+    console.debug('\n========================================')
+    console.debug('=== getCart called ===', section_id)
+    console.debug('getCart Request URL:', request.url, section_id)
+    console.debug('getCart Request Method:', request.method, section_id)
+    console.debug('getCart Request headers:', JSON.stringify(request.headers, null, 2))
     const cookieHeader = request.headers.cookie || ''
     console.log('getCart Cookie header:', cookieHeader)
-    console.log('========================================\n')
+    console.debug('========================================\n')
     
     try {
       const html = await this.cartService.getCart(cookieHeader, section_id)

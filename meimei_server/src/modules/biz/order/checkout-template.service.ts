@@ -83,7 +83,7 @@ export class CheckoutTemplateService implements OnModuleInit {
     }
   
 
-    this.logger.log(`✅ 准备生成 Checkout HTML,订单:`,JSON.stringify(orderData),`currency: ${orderData.currency}`)
+    this.logger.debug(`✅ 准备生成 Checkout HTML,订单:`,JSON.stringify(orderData),`currency: ${orderData.currency}`)
     // 1. 替换支付 URL 配置(注入订单编号)
     html = this.replacePayUrlConfig(html, orderData.orderNo)
   
@@ -270,7 +270,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       
       html = html.replace(originalSection, replacementHTML)
       
-      this.logger.log(`✅ 已替换产品列表区域,共 ${orderData.items.length} 个商品`)
+      this.logger.debug(`✅ 已替换产品列表区域,共 ${orderData.items.length} 个商品`)
       
     } catch (error) {
       this.logger.error(`❌ 替换产品列表区域失败: ${error.message}`)

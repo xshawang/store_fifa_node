@@ -23,11 +23,6 @@ export class FacebookEventService {
       ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
       TEST_CODE: 'TEST44758',
     },
-    // 添加其他环境的配置
-    // 'localhost:3000': {
-    //   PIXEL_ID: '测试环境PIXEL_ID',
-    //   ACCESS_TOKEN: '测试环境ACCESS_TOKEN',
-    // },
   }
   
 
@@ -84,13 +79,13 @@ export class FacebookEventService {
     // 根据 host 获取对应的 Facebook 配置
     const requestHost = host || 'default'
     const config = this.FACEBOOK_CONFIGS[host] || this.FACEBOOK_CONFIGS['store.fafbuy.store']
-    this.logger.log(requestHost ,' 发送 Facebook 事件 - 配置:', JSON.stringify(config))
+   // this.logger.log(requestHost ,' 发送 Facebook 事件 - 配置:', JSON.stringify(config))
     const url = `https://graph.facebook.com/v19.0/${config.PIXEL_ID}/events?access_token=${config.ACCESS_TOKEN}`
 
     // 将金额从分转换为元（如果是以分为单位）
     const valueInDollars = orderData.totalAmount
 
-    this.logger.log('发送 Facebook 事件 :', JSON.stringify(orderData))
+    //this.logger.log(requestHost,'发送 Facebook 事件 配置',JSON.stringify(config),' \n订单数据',orderData.orderNo,' \n用户IP',ipAddress,' \n用户代理',userAgent)
     const eventData = {
       data: [
         {
@@ -113,7 +108,7 @@ export class FacebookEventService {
         },
       ]
     }
-    this.logger.log(url,'发送 Facebook 事件 - 事件数据:', JSON.stringify(eventData))
+    this.logger.log(requestHost, url, '发送 Facebook 事件 - 事件数据:', JSON.stringify(eventData))
     try {
       const response = await axios.post(url, eventData)
       this.logger.log(
