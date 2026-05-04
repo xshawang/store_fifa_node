@@ -54,17 +54,20 @@ export class SharedService {
     return tree
   }
 
-  /* 获取请求IP */
+  /* 获取请求IP（支持反向代理） */
   getReqIP(req: Request): string {
-    return (
-      // 判断是否有反向代理 IP
-      (
-        (req.headers['x-forwarded-for'] as string) ||
-        // 判断后端的 socket 的 IP
-        req.socket.remoteAddress ||
-        ''
-      ).replace('::ffff:', '')
+    const ip = (
+      // 1. X-Forwarded-For 的第一个IP（客户端真实IP）
+      req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+      // 2. X-Real-IP（Nginx等代理设置）
+      (req.headers['x-real-ip'] as string) ||
+      // 3. 反向代理 IP
+      req.socket.remoteAddress ||
+      // 4. 兜底
+      '0.0.0.0'
     )
+    
+    return ip.replace('::ffff:', '') // 去除 IPv6 前缀
   }
 
   /* 判断IP是不是内网 */

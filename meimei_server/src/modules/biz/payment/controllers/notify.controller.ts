@@ -22,6 +22,7 @@ import { PaymentOrderEntity } from '../entities/payment-order.entity'
 import { PaymentChannelEntity } from '../entities/payment-channel.entity'
 import { Order } from '../../order/entities/order.entity'
 import { Request, Response } from 'express'
+import { SharedService } from 'src/shared/shared.service'
 /**
  * 支付回调控制器
  * 处理第三方支付平台的回调通知
@@ -40,6 +41,8 @@ export class NotifyController {
     
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
+    
+    private readonly sharedService: SharedService,
   ) {}
 
   /**
@@ -282,12 +285,11 @@ export class NotifyController {
       }
 
       // 4. IP 白名单验证（可选）
-      const clientIP = request.ip || request.headers['x-forwarded-for'] || request.connection?.remoteAddress;
-      const cleanIP = typeof clientIP === 'string' ? clientIP.replace(/^::ffff:/, '') : '';
+      const clientIP = this.sharedService.getReqIP(request)
       const allowedIPs = channel.config?.allowed_ips || [];
       
-      if (allowedIPs.length > 0 && !allowedIPs.includes(cleanIP)) {
-        this.logger.warn(`EYPAY回调IP不在白名单: ${cleanIP}`);
+      if (allowedIPs.length > 0 && !allowedIPs.includes(clientIP)) {
+        this.logger.warn(`EYPAY回调IP不在白名单: ${clientIP}`);
         // 可以选择拒绝或继续处理
       }
 

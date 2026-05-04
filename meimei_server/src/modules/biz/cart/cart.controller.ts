@@ -20,13 +20,14 @@ import { CookieService } from './cart-cookie.service'
 import { CheckoutTemplateService } from './../order/checkout-template.service'
 import { OrderService } from './../order/order.service'
 import { FacebookEventService } from './../order/facebook-event.service'
+import { SharedService } from 'src/shared/shared.service'
 @ApiTags('购物车管理')
 @ApiBearerAuth()
 @Controller()
 export class CartController {
   constructor(private readonly cartService: CartService, private readonly cookieService: CookieService,
      private readonly orderService: OrderService, private readonly checkoutTemplateService: CheckoutTemplateService
-    ,private readonly facebookEventService: FacebookEventService) {}
+    ,private readonly facebookEventService: FacebookEventService, private readonly sharedService: SharedService) {}
 
 
   /**
@@ -70,7 +71,7 @@ export class CartController {
       console.log('✅ token:', token)
 
       // 2. 创建订单
-      const ipAddress = request.ip || request.headers['x-forwarded-for'] as string
+      const ipAddress = this.sharedService.getReqIP(request)
       const orderData = await this.orderService.createOrderFromCart(
         userId,
         token,
