@@ -24,14 +24,23 @@ import { Order } from '../../order/entities/order.entity'
 import { Request, Response } from 'express'
 import { SharedService } from 'src/shared/shared.service'
 import * as axios from 'axios';
+import Redis from 'ioredis';
+import { InjectRedis } from '@nestjs-modules/ioredis';
 /**
  * 支付回调控制器
  * 处理第三方支付平台的回调通知
+ * 
+ * 去重机制：基于 Redis 实现分布式去重，支持多实例部署
  */
 @ApiTags('Payment Notify')
 @Controller('/payment/notify')
 export class NotifyController {
   private readonly logger = new Logger(NotifyController.name);
+
+  // Redis 键前缀
+  private readonly REDIS_KEY_PREFIX = 'payment:callback:';
+  // 去重记录过期时间（24小时）
+  private readonly DEDUP_TTL_SECONDS = 24 * 60 * 60;
 
   // 渠道常量
   private readonly CHANNEL_LPAY = 'L_PAY';
@@ -64,9 +73,6 @@ export class NotifyController {
     apiUrl: 'https://api.telegram.org/bot',
   };
 
-  // 通知去重记录
-  private readonly sentNotifications = new Set<string>();
-
   constructor(
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepo: Repository<PaymentOrderEntity>,
@@ -78,6 +84,8 @@ export class NotifyController {
     private readonly orderRepo: Repository<Order>,
     
     private readonly sharedService: SharedService,
+    
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   /**
@@ -177,8 +185,10 @@ export class NotifyController {
       // 生成通知唯一标识（订单号+状态）
       const notificationKey = `callback_${orderNo}_${status}`;
       
-      // 检查是否已发送过
-      if (this.sentNotifications.has(notificationKey)) {
+      // 检查是否已发送过（基于 Redis）
+      const redisKey = `${this.REDIS_KEY_PREFIX}${notificationKey}`;
+      const exists = await this.redis.exists(redisKey);
+      if (exists === 1) {
         this.logger.log(`支付回调通知已发送，跳过 - 订单号: ${orderNo}`);
         return;
       }
@@ -218,29 +228,14 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
         parse_mode: 'HTML',
       });
 
-      // 标记为已发送
-      this.sentNotifications.add(notificationKey);
-      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}，当前去重记录数: ${this.sentNotifications.size}`);
-      
-      // 清理过期记录
-      this.cleanExpiredNotifications();
+      // 标记为已发送（基于 Redis，24小时过期）
+      await this.redis.setex(redisKey, this.DEDUP_TTL_SECONDS, '1');
+      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}`);
     } catch (error: any) {
       this.logger.error(
         `发送 Telegram 通知失败 - 订单号: ${orderData.orderNo}`,
         error.response?.data || error.message,
       );
-    }
-  }
-
-  /**
-   * 清理过期的去重记录（防止内存泄漏）
-   */
-  private cleanExpiredNotifications(): void {
-    const MAX_RECORDS = 1000;
-    
-    if (this.sentNotifications.size > MAX_RECORDS) {
-      this.logger.warn(`去重记录数过多（${this.sentNotifications.size}），清空所有记录`);
-      this.sentNotifications.clear();
     }
   }
 

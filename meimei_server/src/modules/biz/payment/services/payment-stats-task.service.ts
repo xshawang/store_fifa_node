@@ -4,16 +4,25 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { PaymentOrderEntity } from '../entities/payment-order.entity';
 import * as axios from 'axios';
+import Redis from 'ioredis';
+import { InjectRedis } from '@nestjs-modules/ioredis';
 
 /**
  * 支付统计定时任务服务
  * 功能：
  * 1. 每小时统计前一小时支付成功订单
  * 2. 每天0点统计昨天支付成功订单汇总
+ * 
+ * 去重机制：基于 Redis 实现分布式去重，支持多实例部署
  */
 @Injectable()
 export class PaymentStatsTaskService {
   private readonly logger = new Logger(PaymentStatsTaskService.name);
+
+  // Redis 键前缀
+  private readonly REDIS_KEY_PREFIX = 'payment:notification:';
+  // 去重记录过期时间（24小时）
+  private readonly DEDUP_TTL_SECONDS = 24 * 60 * 60;
 
   // Telegram 配置
   private readonly TELEGRAM_CONFIG = {
@@ -22,14 +31,10 @@ export class PaymentStatsTaskService {
     apiUrl: 'https://api.telegram.org/bot',
   };
 
-  // 通知去重记录（使用 Set 存储已发送的通知标识）
-  private readonly sentNotifications = new Set<string>();
-  // 去重记录过期时间（24小时，防止内存泄漏）
-  private readonly DEDUP_EXPIRE_HOURS = 24;
-
   constructor(
     @InjectRepository(PaymentOrderEntity)
     private readonly paymentOrderRepo: Repository<PaymentOrderEntity>,
+    @InjectRedis() private readonly redis: Redis,
   ) {}
 
   /**
@@ -49,10 +54,10 @@ export class PaymentStatsTaskService {
       // 查询前一小时支付成功的订单
       const stats = await this.getPaymentStats(previousHour, currentHour);
 
-      if (stats.count === 0) {
-        this.logger.log(`前一小时(${this.formatDate(previousHour)} - ${this.formatDate(currentHour)})无支付成功订单`);
-        return;
-      }
+      // if (stats.count === 0) {
+      //   this.logger.log(`前一小时(${this.formatDate(previousHour)} - ${this.formatDate(currentHour)})无支付成功订单`);
+      //   return;
+      // }
 
       // 生成通知唯一标识（类型+时间段）
       const notificationKey = `hourly_${this.formatDateHour(previousHour)}`;
@@ -76,11 +81,8 @@ export class PaymentStatsTaskService {
 
       // 记录已发送
       if (sent) {
-        this.markNotificationSent(notificationKey);
+        await this.markNotificationSent(notificationKey);
       }
-
-      // 清理过期记录
-      this.cleanExpiredNotifications();
     } catch (error) {
       this.logger.error('每小时支付统计任务执行失败:', error);
     }
@@ -103,10 +105,10 @@ export class PaymentStatsTaskService {
       // 查询昨天支付成功的订单
       const stats = await this.getPaymentStats(yesterdayStart, todayStart);
 
-      if (stats.count === 0) {
-        this.logger.log('昨天无支付成功订单');
-        return;
-      }
+      // if (stats.count === 0) {
+      //   this.logger.log('昨天无支付成功订单');
+      //   return;
+      // }
 
       // 生成通知唯一标识（类型+日期）
       const notificationKey = `daily_${this.formatDateOnly(yesterdayStart)}`;
@@ -129,11 +131,8 @@ export class PaymentStatsTaskService {
 
       // 记录已发送
       if (sent) {
-        this.markNotificationSent(notificationKey);
+        await this.markNotificationSent(notificationKey);
       }
-
-      // 清理过期记录
-      this.cleanExpiredNotifications();
     } catch (error) {
       this.logger.error('每日支付统计任务执行失败:', error);
     }
@@ -157,7 +156,6 @@ export class PaymentStatsTaskService {
     if (result.length === 0) {
       return { count: 0, totalAmount: 0, currency: 'BRL' };
     }
-
     // 如果有多种货币，取主要的（第一条）
     const mainResult = result[0];
     return {
@@ -280,33 +278,22 @@ export class PaymentStatsTaskService {
   }
 
   /**
-   * 检查通知是否已发送
+   * 检查通知是否已发送（基于 Redis）
    * @param key 通知唯一标识
    */
-  private isNotificationSent(key: string): boolean {
-    return this.sentNotifications.has(key);
+  private async isNotificationSent(key: string): Promise<boolean> {
+    const redisKey = `${this.REDIS_KEY_PREFIX}${key}`;
+    const exists = await this.redis.exists(redisKey);
+    return exists === 1;
   }
 
   /**
-   * 标记通知已发送
+   * 标记通知已发送（基于 Redis，24小时过期）
    * @param key 通知唯一标识
    */
-  private markNotificationSent(key: string): void {
-    this.sentNotifications.add(key);
-    this.logger.debug(`标记通知已发送: ${key}，当前去重记录数: ${this.sentNotifications.size}`);
-  }
-
-  /**
-   * 清理过期的去重记录（防止内存泄漏）
-   * 注意：由于 Set 无法直接获取添加时间，这里采用简单策略
-   * 如果记录数超过阈值（1000条），清空所有记录
-   */
-  private cleanExpiredNotifications(): void {
-    const MAX_RECORDS = 1000;
-    
-    if (this.sentNotifications.size > MAX_RECORDS) {
-      this.logger.warn(`去重记录数过多（${this.sentNotifications.size}），清空所有记录`);
-      this.sentNotifications.clear();
-    }
+  private async markNotificationSent(key: string): Promise<void> {
+    const redisKey = `${this.REDIS_KEY_PREFIX}${key}`;
+    await this.redis.setex(redisKey, this.DEDUP_TTL_SECONDS, '1');
+    this.logger.debug(`标记通知已发送: ${key}，过期时间: ${this.DEDUP_TTL_SECONDS}秒`);
   }
 }
