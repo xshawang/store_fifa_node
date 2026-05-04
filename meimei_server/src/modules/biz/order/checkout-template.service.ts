@@ -241,7 +241,7 @@ export class CheckoutTemplateService implements OnModuleInit {
             </div>
         </div>`
         //介格转换
-        if(orderData.currency == 'BRL') {
+        if(orderData.currency != 'USD') {
           productHTML +=`<div role="cell"
             class="_6zbcq52d _6zbcq52c _1fragem3c _1fragem4b _6zbcq51x _6zbcq51u _1fragem8r _6zbcq51r _6zbcq51p _1fragemu2">
             <div class="_17kya4u1q _1fragem4b _1fragemty _1fragem3c _1fragemt6 Byb5s">
@@ -286,19 +286,13 @@ export class CheckoutTemplateService implements OnModuleInit {
   private replaceCostSummary(html: string, orderData: any, first: boolean): string {
     try {
       const totalInDollars = orderData.totalAmount 
-      const FLAG_BRL = orderData.currency == 'BRL'?true:false
       //直接用字符串截取替换第二个
       const substr= `_19gi7yt0 _19gi7yt18 _19gi7yt1g _19gi7yt1n _1fragem3h notranslate`
       let indexSubstr = html.lastIndexOf(substr);
       const beforeSubstr = html.substring(0, indexSubstr+substr.length+2);
       const afterSubstr = html.substring(indexSubstr+substr.length+2);
       let secondSubstr = afterSubstr.substring(afterSubstr.indexOf('<'));
-
-      if(FLAG_BRL){
-           html = beforeSubstr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondSubstr
-      }else{
-           html = beforeSubstr + '$'+totalInDollars + ' ' + secondSubstr
-      }
+       html = beforeSubstr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondSubstr
      
       //替换第二个
       // let indexSubStr2 = secondSubstr.indexOf(substr);
@@ -313,16 +307,12 @@ export class CheckoutTemplateService implements OnModuleInit {
       const beforeMobileSubStr = html.substring(0, indexMobileSubStr+mobileSubStr.length+2);
       const afterMobileSubStr = html.substring(indexMobileSubStr+mobileSubStr.length+2);
       let secondMobileSubStr = afterMobileSubStr.substring(afterMobileSubStr.indexOf('<'));
-      if(FLAG_BRL){
-         html = beforeMobileSubStr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondMobileSubStr
-      }else{
-         html = beforeMobileSubStr + '$'+totalInDollars + ' ' + secondMobileSubStr
-      }
+       html = beforeMobileSubStr + convertToBrl(Number(totalInDollars), orderData.currency).formatted+` (BRL)` + secondMobileSubStr
      
       const totalRegex = /(<span translate="no" class="_19gi7yt0 _19gi7ytn _19gi7ytg _1fragemvp _19gi7yt18 _19gi7yt1h _19gi7yt1n _1fragem3h notranslate">)(USD)(<\/span>)/
       if (totalRegex.test(html)) {
-        html = html.replace(totalRegex, `$1${orderData.currency}$3`)
-        this.logger.debug('✅ 已替换 货币', { currency: orderData.currency })
+        html = html.replace(totalRegex, `$1BRL$3`)
+        this.logger.debug('✅ 已替换 货币', { currency: 'BRL' })
       } else {
         this.logger.warn('⚠️ 未找到 货币区域')
       }
@@ -333,11 +323,7 @@ export class CheckoutTemplateService implements OnModuleInit {
       let afterSubstrt = html.substring(indexSubstrt+substrt.length+2);
       let secondSubstrt = afterSubstrt.substring( afterSubstrt.indexOf('<'));
 
-       if(FLAG_BRL){
-         html  = beforeSubstrt + convertToBrl(Number(totalInDollars), orderData.currency).formatted +  secondSubstrt
-       }else{
-         html  = beforeSubstrt + '$'+totalInDollars + ' ' + secondSubstrt
-       }
+      html  = beforeSubstrt + convertToBrl(Number(totalInDollars), orderData.currency).formatted +  secondSubstrt
       // const totalRegexMoney = /(<strong translate="no" class="_19gi7yt0 _19gi7ytq _19gi7ytj _1fragemvs _19gi7yt18 _19gi7yt1g _19gi7yt1s _19gi7yt1k _1fragemvv _1fragem3h notranslate">)(\$[\d.]+)(<\/strong>)/
       // if (totalRegexMoney.test(html)) {
       //   html = html.replace(totalRegexMoney, `$1$${totalInDollars}$3`)
