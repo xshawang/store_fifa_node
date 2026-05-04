@@ -22,7 +22,7 @@ export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd())
   const isBuild = command.includes('build')
   const isProduction = mode === 'production'
-  const { VITE_APP_ENV, VITE_BUILD_COMPRESS } = env
+  const { VITE_APP_ENV, VITE_BUILD_COMPRESS, VITE_APP_PORT } = env
 
   const plugins = [
     nodePolyfills(),
@@ -151,7 +151,7 @@ export default defineConfig(({ mode, command }) => {
     },
     // vite 相关配置
     server: {
-      port: 80,
+      port: parseInt(VITE_APP_PORT) || 80,  // 从环境变量读取端口，默认 80
       host: true,
       open: true,
       proxy: {

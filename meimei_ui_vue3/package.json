@@ -11,6 +11,7 @@
     "build:test": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build --mode test",
     "build:prod": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite build --mode production",
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite --mode development --host",
+    "dev:port": "cross-env NODE_OPTIONS=--max-old-space-size=4096 vite --mode development --host --port",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore",
     "lint:eslint": "eslint --max-warnings 0 --fix --ext \"src/**/*.{vue,less,css,scss,js,jsx,ts,tsx}\"",
     "lint:lint-staged": "lint-staged",
