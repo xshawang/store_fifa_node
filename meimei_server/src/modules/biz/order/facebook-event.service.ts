@@ -13,7 +13,7 @@ export class FacebookEventService {
       ACCESS_TOKEN: 'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
       TEST_CODE: 'TEST91962',
     },
-     'store.flfi.store': {
+     'store.flfa.store': {
       PIXEL_ID: '818970384169351',
       ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
       TEST_CODE: 'TEST44758',
