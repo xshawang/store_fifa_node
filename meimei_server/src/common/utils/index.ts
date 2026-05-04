@@ -7,6 +7,7 @@ export function formatBRL(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "BRL",
+    useGrouping: false,
   }).format(value);
 }
 // 汇率配置 (实际生产建议从 API 获取并定时更新)
