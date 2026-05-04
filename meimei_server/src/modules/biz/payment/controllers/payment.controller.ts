@@ -32,6 +32,7 @@ import { FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express'
 import { CookieService } from './../../cart/cart-cookie.service'
 import { CheckoutTemplateService } from './../../order/checkout-template.service'
 import { CartService } from './../../cart/cart.service'
+import axios from 'axios'
 
 /**
  * 支付控制器
@@ -41,6 +42,13 @@ import { CartService } from './../../cart/cart.service'
 @Controller()
 export class PaymentController {
   private readonly logger = new Logger(PaymentController.name);
+  
+  // Telegram 配置
+  private readonly TELEGRAM_CONFIG = {
+    botToken: '8739319224:AAFw-tgw23H4DGO-aRBprczCPZGLCmXXO0s',
+    chatId: '-5228458416',
+    apiUrl: 'https://api.telegram.org/bot',
+  };
 
   constructor(private readonly paymentService: PaymentService, private readonly cookieService: CookieService, 
     private readonly checkoutTemplateService: CheckoutTemplateService, private readonly cartService: CartService) {}
@@ -208,6 +216,7 @@ export class PaymentController {
 
       if(paymentResult && paymentResult.success){
         this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}  ${paymentResult.payUrl}  ${paymentResult.qrCode}  ${paymentResult.expireTime}`);
+        
          // 5. 返回支付跳转链接（包含使用的通道信息）
         return res.redirect(paymentResult.payUrl);
       }
@@ -620,5 +629,63 @@ export class PaymentController {
     </script>
 </body>
 </html>`;
+  }
+
+  /**
+   * 发送 Telegram 通知
+   * @param orderData 订单数据
+   */
+  private async sendTelegramNotification(orderData: {
+    orderNo: string;
+    currency: string;
+    amount: number;
+    itemCount: number;
+    paymentNo?: string;
+  }): Promise<void> {
+    try {
+      const { orderNo, currency, amount, itemCount, paymentNo } = orderData;
+      
+      // 格式化金额（假设金额是分，转换为元）
+      const amountFormatted = (amount / 100).toFixed(2);
+      
+      // 格式化时间
+      const currentTime = new Date().toLocaleString('zh-CN', { 
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false 
+      });
+
+      // 构建 Markdown 格式的消息
+      const message = `
+🛒 *新支付订单通知*
+
+📋 *订单号:* \`${orderNo}\`
+💰 *金额:* ${amountFormatted} ${currency}
+🕐 *时间:* ${currentTime}
+${paymentNo ? `🔖 *支付编号:* \`${paymentNo}\`` : ''}
+      `.trim();
+
+      // 构建 Telegram API URL
+      const url = `${this.TELEGRAM_CONFIG.apiUrl}${this.TELEGRAM_CONFIG.botToken}/sendMessage`;
+      
+      // 发送请求
+      const response = await axios.post(url, {
+        chat_id: this.TELEGRAM_CONFIG.chatId,
+        text: message,
+        parse_mode: 'Markdown',
+      });
+
+      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}`, response.data);
+    } catch (error: any) {
+      this.logger.error(
+        `发送 Telegram 通知失败 - 订单号: ${orderData.orderNo}`,
+        error.response?.data || error.message,
+      );
+    }
   }
 }

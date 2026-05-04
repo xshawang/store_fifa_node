@@ -23,6 +23,7 @@ import { PaymentChannelEntity } from '../entities/payment-channel.entity'
 import { Order } from '../../order/entities/order.entity'
 import { Request, Response } from 'express'
 import { SharedService } from 'src/shared/shared.service'
+import * as axios from 'axios';
 /**
  * 支付回调控制器
  * 处理第三方支付平台的回调通知
@@ -31,6 +32,37 @@ import { SharedService } from 'src/shared/shared.service'
 @Controller('/payment/notify')
 export class NotifyController {
   private readonly logger = new Logger(NotifyController.name);
+
+  // 渠道常量
+  private readonly CHANNEL_LPAY = 'L_PAY';
+  private readonly CHANNEL_EYPAY = 'EY_PAY';
+  
+  // 支付方式常量
+  private readonly PAYMENT_METHOD_LPAY = 'L_PAY_PIX';
+  private readonly PAYMENT_METHOD_EYPAY = 'EY_PAY_PIX';
+
+  // LPAY 状态映射配置
+  private readonly LPAY_STATUS_MAP = {
+    '0': { paymentStatus: 0 },
+    '1': { paymentStatus: 2, orderStatus: 1, paymentStatusValue: 2 },
+    '2': { paymentStatus: 3, orderStatus: 4, paymentStatusValue: 3 },
+    '3': { paymentStatus: 5, orderStatus: 6, paymentStatusValue: 4 },
+  };
+
+  // EYPAY 状态映射配置
+  private readonly EYPAY_STATUS_MAP = {
+    'SUCCESS': { paymentStatus: 2, orderStatus: 1, paymentStatusValue: 2 },
+    'PROCESSING': { paymentStatus: 1 },
+    'FAILED': { paymentStatus: 3, orderStatus: 4, paymentStatusValue: 3 },
+    'CLOSED': { paymentStatus: 3, orderStatus: 4, paymentStatusValue: 3 },
+  };
+
+  // Telegram 配置
+  private readonly TELEGRAM_CONFIG = {
+    botToken: '8739319224:AAFw-tgw23H4DGO-aRBprczCPZGLCmXXO0s',
+    chatId: '-5228458416',
+    apiUrl: 'https://api.telegram.org/bot',
+  };
 
   constructor(
     @InjectRepository(PaymentOrderEntity)
@@ -44,6 +76,143 @@ export class NotifyController {
     
     private readonly sharedService: SharedService,
   ) {}
+
+  /**
+   * 发送响应（统一响应格式）
+   */
+  private sendResponse(res: Response, status: number, message: string) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(status).send(message);
+  }
+
+  /**
+   * 更新支付订单
+   */
+  private async updatePaymentOrder(
+    paymentOrder: PaymentOrderEntity,
+    newPaymentStatus: number,
+    notifyData: any,
+    extraFields: Partial<PaymentOrderEntity> = {},
+  ): Promise<void> {
+    paymentOrder.status = newPaymentStatus;
+    paymentOrder.notifyData = notifyData;
+    paymentOrder.responseData = { ...paymentOrder.responseData, callback_data: notifyData };
+    
+    // 应用额外字段
+    Object.assign(paymentOrder, extraFields);
+    
+    await this.paymentOrderRepo.save(paymentOrder);
+    this.logger.log(`支付订单状态已更新: ${paymentOrder.paymentNo}, 状态: ${newPaymentStatus}`);
+  }
+
+  /**
+   * 同步更新业务订单
+   */
+  private async syncBusinessOrder(
+    orderNo: string,
+    newOrderStatus: number,
+    newPaymentStatusValue: number,
+    paymentMethod: string,
+    paymentTransactionId: string,
+    extraFields: Partial<Order> = {},
+  ): Promise<boolean> {
+    const order = await this.orderRepo.findOne({
+      where: { orderNo },
+    });
+
+    if (!order) {
+      this.logger.warn(`未找到业务订单: ${orderNo}`);
+      return false;
+    }
+
+    // 幂等性检查：订单已处理则跳过
+    if (order.orderStatus !== 0) {
+      this.logger.log(`订单状态已处理，不再更新: ${orderNo}, 订单状态: ${order.orderStatus}`);
+      return true;
+    }
+
+    // 更新订单
+    order.orderStatus = newOrderStatus;
+    order.paymentMethod = paymentMethod;
+    order.paymentTransactionId = paymentTransactionId;
+    order.paymentStatus = newPaymentStatusValue;
+    
+    // 应用额外字段
+    Object.assign(order, extraFields);
+
+    await this.orderRepo.save(order);
+    this.logger.log(`订单状态已同步: ${orderNo}, 订单状态: ${newOrderStatus}, 支付状态: ${newPaymentStatusValue}`);
+    return true;
+  }
+
+  /**
+   * 获取状态映射
+   */
+  private getStatusMap(channelCode: string, status: string): any {
+    if (channelCode === this.CHANNEL_LPAY) {
+      return this.LPAY_STATUS_MAP[status];
+    } else if (channelCode === this.CHANNEL_EYPAY) {
+      return this.EYPAY_STATUS_MAP[status];
+    }
+    return null;
+  }
+
+  /**
+   * 发送 Telegram 通知（异步）
+   */
+  private async sendTelegramNotification(orderData: {
+    orderNo: string;
+    channelCode: string;
+    currency: string;
+    amount: number;
+    status: string;
+    paymentNo?: string;
+  }): Promise<void> {
+    try {
+      const { orderNo, channelCode, currency, amount, status, paymentNo } = orderData;
+      const amountFormatted = (amount / 100).toFixed(2);
+      const currentTime = new Date().toLocaleString('zh-CN', { 
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false 
+      });
+
+      const statusEmoji = status === 'SUCCESS' || status === '1' ? '✅' : '❌';
+      const statusText = status === 'SUCCESS' || status === '1' ? '支付成功' : 
+                         status === 'PROCESSING' ? '支付中' :
+                         status === 'FAILED' || status === '2' ? '支付失败' :
+                         status === '3' ? '已退款' : status;
+
+const message = `
+✅ <b>支付回调通知</b>\n\n
+📋 <b>订单号:</b> <code>${orderNo}</code>\n
+💰 <b>金额:</b> ${amountFormatted} ${currency}\n
+🏦 <b>支付渠道:</b> ${channelCode}\n
+📊 <b>状态:</b> ${statusText}\n
+🕐<b>时间:</b> ${currentTime}\n
+${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
+`.trim();
+      const url = `${this.TELEGRAM_CONFIG.apiUrl}${this.TELEGRAM_CONFIG.botToken}/sendMessage`;
+      
+      await axios.default.post(url, {
+        chat_id: this.TELEGRAM_CONFIG.chatId,
+        text: message,
+        parse_mode: 'HTML',
+      });
+
+      this.logger.log(`Telegram 通知发送成功 - 订单号: ${orderNo}`);
+    } catch (error: any) {
+      this.logger.error(
+        `发送 Telegram 通知失败 - 订单号: ${orderData.orderNo}`,
+        error.response?.data || error.message,
+      );
+    }
+  }
 
   /**
    * LPAY 支付回调
@@ -72,33 +241,30 @@ export class NotifyController {
 
       if (!merchant_order_no) {
         this.logger.error('LPAY回调缺少商户订单号');
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.BAD_REQUEST).send('Missing merchant_order_no');
+        return this.sendResponse(res, HttpStatus.BAD_REQUEST, 'Missing merchant_order_no');
       }
 
       this.logger.log(`LPAY回调 - 商户订单号: ${merchant_order_no}, 状态: ${status}`);
 
-      // 2. 从数据库查询 L_PAY 渠道配置，获取 platform_secret 用于签名验证
+      // 2. 从数据库查询 L_PAY 渠道配置
       const channel = await this.paymentChannelRepo.findOne({
-        where: { channelCode: 'L_PAY' },
+        where: { channelCode: this.CHANNEL_LPAY },
       });
 
       if (!channel) {
         this.logger.error('未找到 L_PAY 支付通道配置');
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Channel not found');
+        return this.sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, 'Channel not found');
       }
 
-      // 3. 验证签名（sign 参数不参与签名）
+      // 3. 验证签名
       const signData = { ...data };
-      delete signData.sign;  // 移除 sign 参数
+      delete signData.sign;
       
       const expectedSign = this.generateSign(signData, channel.platformSecret);
-      this.logger.log(`LPAY回调 - 签名: ${expectedSign}`);
+      this.logger.debug(`LPAY回调 - 签名: ${expectedSign}`);
       if (sign !== expectedSign) {
         this.logger.error(`LPAY回调签名验证失败 - 期望: ${expectedSign}, 实际: ${sign}`);
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.BAD_REQUEST).send('Invalid sign');
+        return this.sendResponse(res, HttpStatus.BAD_REQUEST, 'Invalid sign');
       }
 
       this.logger.log('LPAY回调签名验证成功');
@@ -110,100 +276,66 @@ export class NotifyController {
 
       if (!paymentOrder) {
         this.logger.error(`未找到支付订单: ${merchant_order_no}`);
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.NOT_FOUND).send('Payment order not found');
+        return this.sendResponse(res, HttpStatus.NOT_FOUND, 'Payment order not found');
       }
 
-      // 5. 根据 status 更新支付订单状态
-      // LPAY状态: 0-未支付 1-支付成功 2-支付失败 3-退款
-      // 支付表状态: 0-待支付 1-支付中 2-支付成功 3-支付失败 4-已取消 5-已退款
-      let newPaymentStatus: number;
-      let newOrderStatus: number | undefined;
-      let newPaymentStatusValue: number | undefined;
-
-      switch (status) {
-        case '0':  // 未支付
-          newPaymentStatus = 0;  // 待支付
-          break;
-        
-        case '1':  // 支付成功
-          newPaymentStatus = 2;  // 支付成功
-          newOrderStatus = 1;    // 订单状态：已支付
-          newPaymentStatusValue = 2;  // 订单支付状态：已支付
-          break;
-        
-        case '2':  // 支付失败
-          newPaymentStatus = 3;  // 支付失败
-          newOrderStatus = 4;    // 订单状态：已取消
-           newPaymentStatusValue = 3;  // 订单支付状态：支付失败
-          break;
-        
-        case '3':  // 退款
-          newPaymentStatus = 5;  // 已退款
-          newOrderStatus = 6;    // 订单状态：已退款（如果有的话）
-          newPaymentStatusValue = 4;  // 订单支付状态：已退款
-          break;
-        
-        default:
-          this.logger.warn(`未知的 LPAY 状态: ${status}`);
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-          return res.send('success');
+      // 5. 获取状态映射
+      const statusMap = this.getStatusMap(this.CHANNEL_LPAY, status);
+      if (!statusMap) {
+        this.logger.warn(`未知的 LPAY 状态: ${status}`);
+        return this.sendResponse(res, HttpStatus.OK, 'success');
       }
 
-      // 6. 更新支付订单表
-      paymentOrder.status = newPaymentStatus;
-      paymentOrder.notifyData = data;
-      paymentOrder.responseData = { ...paymentOrder.responseData, callback_data: data };
-      
+      const { paymentStatus, orderStatus, paymentStatusValue } = statusMap;
+
+      // 6. 更新支付订单
+      const extraPaymentFields: Partial<PaymentOrderEntity> = {};
       if (status === '1' && pay_date) {
-        paymentOrder.paidTime = new Date(pay_date);
+        extraPaymentFields.paidTime = new Date(pay_date);
       }
-      
       if (status === '2' && error_msg) {
-        paymentOrder.errorMsg = error_msg;
+        extraPaymentFields.errorMsg = error_msg;
       }
 
-      await this.paymentOrderRepo.save(paymentOrder);
-      this.logger.log(`支付订单状态已更新: ${merchant_order_no}, 状态: ${newPaymentStatus}`);
+      await this.updatePaymentOrder(paymentOrder, paymentStatus, data, extraPaymentFields);
 
-      // 7. 同步更新 biz_order 表（仅支付成功和支付失败）
-      if (newOrderStatus !== undefined) {
-        const order = await this.orderRepo.findOne({
-          where: { orderNo: paymentOrder.orderNo },
-        });
+      // 7. 同步更新业务订单
+      if (orderStatus !== undefined) {
+        const extraOrderFields: Partial<Order> = {};
+        if (status === '1' && pay_date) {
+          extraOrderFields.paidAt = new Date(pay_date);
+          extraOrderFields.paidAmount = paymentOrder.amount;  // 已支付金额 = 订单总金额
+        }
 
-        if (order) {
-          if(0 != order.orderStatus){
-             this.logger.log(`订单状态 已经处理，不再更新: ${paymentOrder.orderNo}, 订单状态: ${order.orderStatus}, 支付状态: ${newPaymentStatusValue}`);
-             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-             return res.send('success');
-          }
-          order.orderStatus = newOrderStatus;
-          order.paymentMethod='L_PAY_PIX'
-          order.paymentTransactionId = data.order_no||'';
-          if (newPaymentStatusValue !== undefined) {
-            order.paymentStatus = newPaymentStatusValue;
-          }
-          
-          if (status === '1' && pay_date) {
-            order.paidAt = new Date(pay_date);
-            order.paidAmount = order.totalAmount;  // 已支付金额 = 订单总金额
-          }
+        const orderUpdated = await this.syncBusinessOrder(
+          paymentOrder.orderNo,
+          orderStatus,
+          paymentStatusValue,
+          this.PAYMENT_METHOD_LPAY,
+          data.order_no || '',
+          extraOrderFields,
+        );
 
-          await this.orderRepo.save(order);
-          this.logger.log(`订单状态已同步: ${merchant_order_no}, 订单状态: ${newOrderStatus}, 支付状态: ${newPaymentStatusValue}`);
-        } else {
-          this.logger.warn(`未找到业务订单: ${merchant_order_no}`);
+        // 8. 异步发送 Telegram 通知（仅支付成功时）
+        if (status === '1') {
+          this.sendTelegramNotification({
+            orderNo: paymentOrder.orderNo,
+            channelCode: this.CHANNEL_LPAY,
+            currency: paymentOrder.currency || 'BRL',
+            amount: paymentOrder.amount,
+            status: status,
+            paymentNo: paymentOrder.paymentNo,
+          }).catch((error) => {
+            this.logger.error('发送 Telegram 通知失败:', error);
+          });
         }
       }
 
-      // 8. 返回成功响应
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.send('success');
+      // 9. 返回成功响应
+      return this.sendResponse(res, HttpStatus.OK, 'success');
     } catch (error) {
       this.logger.error(`处理LPAY回调失败: ${error.message}`, error.stack);
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Internal error');
+      return this.sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, 'Internal error');
     }
   }
 
@@ -244,41 +376,36 @@ export class NotifyController {
       const { notifyNo, timeCreated, type } = data;
       if (!merchant_order_no) {
         this.logger.error('EYPAY回调缺少商户订单号');
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.BAD_REQUEST).send('Missing merchant_order_no');
+        return this.sendResponse(res, HttpStatus.BAD_REQUEST, 'Missing merchant_order_no');
       }
 
       this.logger.log(`EYPAY回调 - 商户订单号: ${merchant_order_no}, 状态: ${status}`);
 
       // 2. 从数据库查询 EY_PAY 渠道配置
       const channel = await this.paymentChannelRepo.findOne({
-        where: { channelCode: 'EY_PAY' },
+        where: { channelCode: this.CHANNEL_EYPAY },
       });
 
       if (!channel) {
         this.logger.error('未找到 EY_PAY 支付通道配置');
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Channel not found');
+        return this.sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, 'Channel not found');
       }
 
-      // 3. 验证签名（需要平台公钥）
-      // 根据文档，验签数据格式：nonce+'\n'+timestamp+'\n'+Authorization+'\n'+response_data
+      // 3. 验证签名
       const platformPublicKey = channel.platformSecret || '';
       if (!platformPublicKey) {
         this.logger.warn('EYPAY平台公钥未配置，跳过签名验证');
-        // 实际生产环境必须验证签名，这里暂时跳过
       } else {
         const signData = `${nonce}\n${timestamp}\n${authorization}\n${JSON.stringify(data)}`;
-        this.logger.log(`EYPAY回调验签数据: ${signData}`);
+        this.logger.debug(`EYPAY回调验签数据: ${signData}`);
         const signResult = this.rsaSign(signData, platformPublicKey);
-        this.logger.log(` 验签结果 `, signResult)
+        this.logger.debug(`EYPAY验签结果: ${signResult}`);
 
         const isValid = this.rsaVerify(signData, signResult, platformPublicKey);
         
         if (!isValid) {
           this.logger.error(`EYPAY回调签名验证失败`);
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-          return res.status(HttpStatus.BAD_REQUEST).send('Invalid sign');
+          return this.sendResponse(res, HttpStatus.BAD_REQUEST, 'Invalid sign');
         }
         
         this.logger.log('EYPAY回调签名验证成功');
@@ -290,7 +417,6 @@ export class NotifyController {
       
       if (allowedIPs.length > 0 && !allowedIPs.includes(clientIP)) {
         this.logger.warn(`EYPAY回调IP不在白名单: ${clientIP}`);
-        // 可以选择拒绝或继续处理
       }
 
       // 5. 查找支付订单
@@ -300,115 +426,70 @@ export class NotifyController {
 
       if (!paymentOrder) {
         this.logger.error(`未找到支付订单: ${merchant_order_no}`);
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(HttpStatus.NOT_FOUND).send('Payment order not found');
+        return this.sendResponse(res, HttpStatus.NOT_FOUND, 'Payment order not found');
       }
 
-      // 6. 根据 status 更新支付订单状态
-      let newPaymentStatus: number;
-      let newOrderStatus: number | undefined;
-      let newPaymentStatusValue: number | undefined;
-
-      switch (status) {
-        case 'SUCCESS':  // 支付成功
-          newPaymentStatus = 2;  // 支付成功
-          newOrderStatus = 1;    // 订单状态：已支付
-          newPaymentStatusValue = 2;  // 订单支付状态：已支付
-          break;
-        
-        case 'PROCESSING':  // 支付中
-          newPaymentStatus = 1;  // 支付中
-          break;
-        
-        case 'FAILED':  // 支付失败
-        case 'CLOSED':  // 已关闭
-          newPaymentStatus = 3;  // 支付失败
-          newOrderStatus = 4;    // 订单状态：已取消
-          newPaymentStatusValue = 3;  // 订单支付状态：支付失败
-          break;
-        
-        default:
-          this.logger.warn(`未知的 EYPAY 状态: ${status}`);
-          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-          return res.send('success');
+      // 6. 获取状态映射
+      const statusMap = this.getStatusMap(this.CHANNEL_EYPAY, status);
+      if (!statusMap) {
+        this.logger.warn(`未知的 EYPAY 状态: ${status}`);
+        return this.sendResponse(res, HttpStatus.OK, 'success');
       }
 
-      // 7. 更新支付订单表
-      paymentOrder.status = newPaymentStatus;
-      paymentOrder.notifyData = data;
-      paymentOrder.responseData = { ...paymentOrder.responseData, callback_data: data };
-      paymentOrder.thirdPaymentNo = order_no || paymentOrder.thirdPaymentNo;
-      
+      const { paymentStatus, orderStatus, paymentStatusValue } = statusMap;
+
+      // 7. 更新支付订单
+      const extraPaymentFields: Partial<PaymentOrderEntity> = {};
       if (status === 'SUCCESS') {
-        paymentOrder.paidTime = new Date();
+        extraPaymentFields.paidTime = new Date();
       }
+      extraPaymentFields.thirdPaymentNo = order_no || paymentOrder.thirdPaymentNo;
 
-      await this.paymentOrderRepo.save(paymentOrder);
-      this.logger.log(`支付订单状态已更新: ${merchant_order_no}, 状态: ${newPaymentStatus}`);
+      await this.updatePaymentOrder(paymentOrder, paymentStatus, data, extraPaymentFields);
 
-      // 8. 同步更新 biz_order 表（仅支付成功和支付失败）
-      if (newOrderStatus !== undefined) {
-        const order = await this.orderRepo.findOne({
-          where: { orderNo: paymentOrder.orderNo },
-        });
+      // 8. 同步更新业务订单
+      if (orderStatus !== undefined) {
+        const extraOrderFields: Partial<Order> = {};
+        if (status === 'SUCCESS') {
+          extraOrderFields.paidAt = new Date();
+          extraOrderFields.paidAmount = paymentOrder.amount;  // 已支付金额 = 订单总金额
+        }
 
-        if (order) {
-          if(0 != order.orderStatus){
-             this.logger.log(`订单状态 已经处理，不再更新: ${paymentOrder.orderNo}, 订单状态: ${order.orderStatus}, 支付状态: ${newPaymentStatusValue}`);
-             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-             return res.send('success');
-          }
-          order.orderStatus = newOrderStatus;
-          order.paymentMethod='EY_PAY_PIX';
-          order.paymentTransactionId = order_no || '';
-          if (newPaymentStatusValue !== undefined) {
-            order.paymentStatus = newPaymentStatusValue;
-          }
-          
-          if (status === 'SUCCESS') {
-            order.paidAt = new Date();
-            order.paidAmount = order.totalAmount;  // 已支付金额 = 订单总金额
-          }
+        const orderUpdated = await this.syncBusinessOrder(
+          paymentOrder.orderNo,
+          orderStatus,
+          paymentStatusValue,
+          this.PAYMENT_METHOD_EYPAY,
+          order_no || '',
+          extraOrderFields,
+        );
 
-          await this.orderRepo.save(order);
-          this.logger.log(`订单状态已同步: ${merchant_order_no}, 订单状态: ${newOrderStatus}, 支付状态: ${newPaymentStatusValue}`);
-        } else {
-          this.logger.warn(`未找到业务订单: ${merchant_order_no}`);
+        // 9. 异步发送 Telegram 通知（仅支付成功时）
+        if (status === 'SUCCESS' && orderUpdated) {
+          this.sendTelegramNotification({
+            orderNo: paymentOrder.orderNo,
+            channelCode: this.CHANNEL_EYPAY,
+            currency: paymentOrder.currency || 'BRL',
+            amount: paymentOrder.amount,
+            status: status,
+            paymentNo: paymentOrder.paymentNo,
+          }).catch((error) => {
+            this.logger.error('发送 Telegram 通知失败:', error);
+          });
         }
       }
 
-      // 9. 返回成功响应
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.send('success');
+      // 10. 返回成功响应
+      return this.sendResponse(res, HttpStatus.OK, 'success');
     } catch (error) {
       this.logger.error(`处理EYPAY回调失败: ${error.message}`, error.stack);
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-      res.status(HttpStatus.INTERNAL_SERVER_ERROR).send('Internal error');
+      return this.sendResponse(res, HttpStatus.INTERNAL_SERVER_ERROR, 'Internal error');
     }
   }
 
   /**
-   * 验证 IP 是否在白名单中
+   * 生成 MD5 签名（LPAY 使用）
    */
-  private isIPAllowed(ip: string): boolean {
-    if (!ip) {
-      return false;
-    }
-    
-    // 处理可能的 IPv6 映射格式
-    const cleanIP = ip.replace(/^::ffff:/, '');
-    
-    const allowedIPs = [
-      '54.233.234.196',
-      '18.229.23.62',
-      '56.125.86.62',
-      '18.229.182.144',
-      '56.125.155.115',
-    ];
-    
-    return allowedIPs.includes(cleanIP);
-  }
-
   private generateSign(params: Record<string, any>, secret: string): string {
       // 1. 过滤空参数
       const filteredParams: Record<string, any> = {};
