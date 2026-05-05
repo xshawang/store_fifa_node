@@ -54,7 +54,7 @@ export class PaymentStatsTaskService {
 
       // 查询前一小时支付成功的订单
       const stats = await this.getPaymentStats(previousHour, currentHour);
-
+      console.log(` 发送的数据项 ` + JSON.stringify(stats));
       // if (stats.count === 0) {
       //   this.logger.log(`前一小时(${this.formatDate(previousHour)} - ${this.formatDate(currentHour)})无支付成功订单`);
       //   return;
@@ -63,8 +63,9 @@ export class PaymentStatsTaskService {
       // 生成通知唯一标识（类型+时间段）
       const notificationKey = `hourly_${this.formatDateHour(previousHour)}`;
       
+      const f = await this.isNotificationSent(notificationKey);
       // 检查是否已发送过
-      if (this.isNotificationSent(notificationKey)) {
+      if (f) {
         this.logger.log(`每小时统计通知已发送，跳过 - 时间段: ${this.formatDateHour(previousHour)}`);
         return;
       }
@@ -105,7 +106,7 @@ export class PaymentStatsTaskService {
 
       // 查询昨天支付成功的订单
       const stats = await this.getPaymentStats(yesterdayStart, todayStart);
-
+      console.log(` 发送的数据项 ` + JSON.stringify(stats));
       // if (stats.count === 0) {
       //   this.logger.log('昨天无支付成功订单');
       //   return;
@@ -115,7 +116,9 @@ export class PaymentStatsTaskService {
       const notificationKey = `daily_${this.formatDateOnly(yesterdayStart)}`;
       
       // 检查是否已发送过
-      if (this.isNotificationSent(notificationKey)) {
+      const f = await this.isNotificationSent(notificationKey);
+      console.log(`是否发送过 isNotificationSent: ${f}`);
+      if (f) {
         this.logger.log(`每日汇总通知已发送，跳过 - 日期: ${this.formatDateOnly(yesterdayStart)}`);
         return;
       }
