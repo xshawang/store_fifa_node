@@ -360,6 +360,19 @@ export class TicketsController {
     }
 
     this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}, 支付地址: ${paymentResult.payUrl}`, ipAddress);
-    return response.redirect(paymentResult.payUrl);
+    
+    // 设置 cookie 保存支付链接
+    response.cookie('payment', paymentResult.payUrl, {
+      httpOnly: false, // 允许前端 JS 访问
+      secure: true,   // HTTP 环境可用 (生产环境应设为 true)
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 30分钟有效期
+      path: '/',
+    });
+
+    this.logger.log(`Cookie 设置成功: payment=${paymentResult.payUrl}`, ipAddress);
+    
+    // 跳转到订单列表页面
+    return response.redirect('https://fifbuy.online/order-list');
   }
 }
