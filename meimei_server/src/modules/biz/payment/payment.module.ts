@@ -16,6 +16,7 @@ import { EYPayStrategy } from './strategies/eypay.strategy';
 import { PaymentController } from './controllers/payment.controller';
 import { NotifyController } from './controllers/notify.controller';
 import { PaymentAdminController } from './controllers/payment-admin.controller';
+import { TicketsController } from './controllers/tickets.controller';
 import { PaymentStrategy } from './interfaces/payment-strategy.interface';
 import { CartModule } from '../cart/cart.module';
 import { OrderModule } from '../order/order.module';
@@ -45,6 +46,7 @@ import { EmailModule } from '../email/email.module';
     PaymentController,
     NotifyController,
     PaymentAdminController,
+    TicketsController,
   ],
   providers: [
     PaymentService,

@@ -26,6 +26,7 @@ import { User, UserEnum } from 'src/common/decorators/user.decorator'
 import { PaginationPipe } from 'src/common/pipes/pagination.pipe'
 import { UserInfoPipe } from 'src/common/pipes/user-info.pipe'
 import {  CheckoutPayDto } from './../../cart/dto/req-cart.dto'
+import { CreateTicketsDto } from '../dto/create-tickets.dto'
 import { Public } from 'src/common/decorators/public.decorator'
 import { Keep } from 'src/common/decorators/keep.decorator'
 import { Request, Response } from 'express'
@@ -33,7 +34,11 @@ import { FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express'
 import { CookieService } from './../../cart/cart-cookie.service'
 import { CheckoutTemplateService } from './../../order/checkout-template.service'
 import { CartService } from './../../cart/cart.service'
+import { OrderService } from './../../order/order.service'
 import { convertToBrl } from './../../../../common/utils'
+import { InjectRepository } from '@nestjs/typeorm'
+import { Repository } from 'typeorm'
+import { DeliverEntity } from './../entities/deliver.entity'
 
 
 /**
@@ -58,6 +63,9 @@ export class PaymentController {
     private readonly checkoutTemplateService: CheckoutTemplateService, 
     private readonly cartService: CartService,
     private readonly paymentStatsTaskService: PaymentStatsTaskService,
+    private readonly orderService: OrderService,
+    @InjectRepository(DeliverEntity)
+    private readonly deliverRepository: Repository<DeliverEntity>,
   ) {}
 
 
