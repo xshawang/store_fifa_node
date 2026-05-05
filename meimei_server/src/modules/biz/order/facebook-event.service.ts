@@ -7,17 +7,30 @@ export class FacebookEventService {
   private readonly logger = new Logger(FacebookEventService.name)
   
   // 不同环境的 Facebook 配置
+  // store.fafbuy.store  商城域名  对外  flfa.store
+  //fifbuy.online tiket域名，此二域名暂不对外 对外www.flfa.store
   private readonly FACEBOOK_CONFIGS = {
     'store.fafbuy.store': {
       PIXEL_ID: '1499659318285286',
       ACCESS_TOKEN: 'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
       TEST_CODE: 'TEST91962',
     },
-     'flfa.store': {
+      'fifbuy.online': {
       PIXEL_ID: '818970384169351',
       ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
       TEST_CODE: 'TEST44758',
     },
+     'www.flfa.store': {
+      PIXEL_ID: '818970384169351',
+      ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
+      TEST_CODE: 'TEST44758',
+    },
+     'flfa.store': {
+      PIXEL_ID: '1499659318285286',
+      ACCESS_TOKEN: 'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
+      TEST_CODE: 'TEST91962',
+    },
+   
     'default': {
       PIXEL_ID: '818970384169351',
       ACCESS_TOKEN:'EAAXYvJye51EBRaZBrnMGmcaE5iHvaZCs0KVvr4ahZAsZBaOztkQiKCCrOxTCOtG2Qzx9M7ZA0OzxZBsdsrrefOCPn7tjsl7siFQOVupyWCv1oZBLgeZAa2lWKkdT1WtWbHZBPHMCtYmMWCxf33bGAZBPIjyP0npk2Cf24bfyqdW3gWKyf21ZBHNZC4KOjqCjemf9SQZDZD',
