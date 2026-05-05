@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 
+import { convertToBrl } from './../../../common/utils';
+
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -71,11 +74,12 @@ export class EmailService {
    * 生成订单成功邮件HTML
    */
   private generateOrderSuccessHtml(orderData: any, orderInfoUrl: string): string {
-    const totalAmountFormatted = (orderData.totalAmount / 100).toFixed(2);
-    const currencySymbol = orderData.currency === 'BRL' ? 'R$' : '$';
+    
+    const totalAmountFormatted = orderData.currency === 'USD' ? orderData.totalAmount : convertToBrl(orderData.totalAmount, orderData.currency);
+    const currencySymbol = orderData.currency === 'USD' ? '$' : 'R$';
     const itemsHtml = orderData.items.map((item: any) => {
-      const priceFormatted = (item.salePrice / 100).toFixed(2);
-      const subtotalFormatted = (item.subtotalAmount / 100).toFixed(2);
+      const priceFormatted = orderData.currency === 'USD' ? item.salePrice : convertToBrl(item.salePrice, orderData.currency);
+      const subtotalFormatted = orderData.currency === 'USD' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, orderData.currency);
       return `
         <div style="padding: 16px 0; border-bottom: 1px solid #e0e0e0;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
