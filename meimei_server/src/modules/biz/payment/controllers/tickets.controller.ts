@@ -245,8 +245,8 @@ export class TicketsController {
       
       const paymentResult = await this.paymentService.createPayment({
         orderNo: orderEntity.orderNo,
-        amount: orderEntity.totalAmount,
-        currency: 'USD',
+        amount: convertToBrl(orderEntity.totalAmount, 'USD').brl,
+        currency: 'BRL',
         paymentMethod: 'PIX_BRL',
         userId: dto.uid,
         email: dto.email,
