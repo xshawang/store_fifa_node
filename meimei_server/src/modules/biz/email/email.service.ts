@@ -136,11 +136,11 @@ export class EmailService {
    */
   private generateOrderSuccessHtml(orderData: any, orderInfoUrl: string): string {
     
-    const totalAmountFormatted = orderData.currency === 'USD' ? orderData.totalAmount : convertToBrl(orderData.totalAmount, orderData.currency);
+    const totalAmountFormatted = orderData.currency === 'USD' ? orderData.totalAmount : convertToBrl(orderData.totalAmount, orderData.currency).brl;
     const currencySymbol = orderData.currency === 'USD' ? '$' : 'R$';
     const itemsHtml = orderData.items.map((item: any) => {
-      const priceFormatted = orderData.currency === 'USD' ? item.salePrice : convertToBrl(item.salePrice, orderData.currency);
-      const subtotalFormatted = orderData.currency === 'USD' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, orderData.currency);
+      const priceFormatted = orderData.currency === 'USD' ? item.salePrice : convertToBrl(item.salePrice, orderData.currency).brl;
+      const subtotalFormatted = orderData.currency === 'USD' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, orderData.currency).brl;
       return `
         <div style="padding: 16px 0; border-bottom: 1px solid #e0e0e0;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">

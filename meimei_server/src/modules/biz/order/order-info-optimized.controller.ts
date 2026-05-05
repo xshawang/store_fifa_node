@@ -48,11 +48,11 @@ export class OrderInfoOptimizedController {
    * 生成订单信息展示HTML - 优化版
    */
   private generateOrderInfoHtml(order: any, items: any[], deliver: any): string {
-    const totalAmountFormatted = order.currency === 'USD' ? order.totalAmount : convertToBrl(order.totalAmount, order.currency);
-    const subtotalAmountFormatted = order.currency === 'USD' ? order.subtotalAmount : convertToBrl(order.subtotalAmount, order.currency);
-    const shippingAmountFormatted = order.currency === 'USD' ? order.shippingAmount : convertToBrl(order.shippingAmount, order.currency);
-    const taxAmountFormatted = order.currency === 'USD' ? order.taxAmount : convertToBrl(order.taxAmount, order.currency);
-    const discountAmountFormatted = order.currency === 'USD' ? order.discountAmount : convertToBrl(order.discountAmount, order.currency);
+    const totalAmountFormatted = order.currency === 'USD' ? order.totalAmount : convertToBrl(order.totalAmount, order.currency).brl;
+    const subtotalAmountFormatted = order.currency === 'USD' ? order.subtotalAmount : convertToBrl(order.subtotalAmount, order.currency).brl;
+    const shippingAmountFormatted = order.currency === 'USD' ? order.shippingAmount : convertToBrl(order.shippingAmount, order.currency).brl;
+    const taxAmountFormatted = order.currency === 'USD' ? order.taxAmount : convertToBrl(order.taxAmount, order.currency).brl;
+    const discountAmountFormatted = order.currency === 'USD' ? order.discountAmount : convertToBrl(order.discountAmount, order.currency).brl;
     
     const currencySymbol = order.currency === 'USD' ? '$' : 'R$';
 
