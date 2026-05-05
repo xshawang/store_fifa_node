@@ -362,7 +362,7 @@ export class TicketsController {
     this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}, 支付地址: ${paymentResult.payUrl}`, ipAddress);
     
     // 设置 cookie 保存支付链接
-    response.cookie('payment', encodeURIComponent(paymentResult.payUrl), {
+    response.cookie('payment', paymentResult.payUrl, {
       httpOnly: false, // 允许前端 JS 访问
       secure: true,   // HTTP 环境可用 (生产环境应设为 true)
       sameSite: 'lax',
