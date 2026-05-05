@@ -81,8 +81,8 @@ export class CreateTicketsDto {
   @Transform(({ value }) => parseFloat(value) || 0)
   discount_total_price?: number = 0;
 
-  @ApiProperty({ description: '订单摘要(JSON数组字符串,每5个元素为一个物品)' })
-  @IsNotEmpty({ message: 'fifaShowOrderSummary不能为空' })
+  @ApiProperty({ description: '订单摘要(JSON数组字符串,每5个元素为一个物品)', required: false })
+    @IsOptional()
   fifaShowOrderSummary: string;
 
   @ApiProperty({ description: '订单物品图片(JSON数组字符串)', required: false })
