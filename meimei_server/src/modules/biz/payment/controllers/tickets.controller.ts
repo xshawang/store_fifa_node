@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, Logger } from '@nestjs/common';
+import { Controller, Post, Body, Req, Res, HttpCode, HttpStatus, Logger,UseInterceptors } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -14,7 +14,7 @@ import { FacebookEventService } from './../../order/facebook-event.service'
 import { SharedService } from 'src/shared/shared.service'
 import { PaymentService } from './../services/payment.service'
 import { convertToBrl } from './../../../../common/utils';
-  
+import { FilesInterceptor, AnyFilesInterceptor } from '@nestjs/platform-express'
 /**
  * 票务订单控制器
  * 处理 /checkout/tickets 接口
@@ -42,7 +42,7 @@ export class TicketsController {
   @Post('/checkout/tickets')
   @Public()
   @Keep()
-  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(AnyFilesInterceptor())
   @ApiOperation({ summary: '创建票务订单' })
   async createTicketsOrder(
     @Body() dto: CreateTicketsDto,
