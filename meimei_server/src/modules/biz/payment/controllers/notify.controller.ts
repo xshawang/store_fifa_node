@@ -21,12 +21,14 @@ import { Repository } from 'typeorm'
 import { PaymentOrderEntity } from '../entities/payment-order.entity'
 import { PaymentChannelEntity } from '../entities/payment-channel.entity'
 import { Order } from '../../order/entities/order.entity'
+import { OrderItem } from '../../order/entities/order-item.entity'
 import { Request, Response } from 'express'
 import { SharedService } from 'src/shared/shared.service'
 import Redis from 'ioredis';
 import { InjectRedis } from '@nestjs-modules/ioredis';
      import { firstValueFrom } from 'rxjs';
      import { HttpService } from '@nestjs/axios';
+import { EmailService } from '../../email/email.service';
 /**
  * 支付回调控制器
  * 处理第三方支付平台的回调通知
@@ -84,10 +86,14 @@ export class NotifyController {
     @InjectRepository(Order)
     private readonly orderRepo: Repository<Order>,
     
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepo: Repository<OrderItem>,
+    
     private readonly sharedService: SharedService,
     
     @InjectRedis() private readonly redis: Redis,
     private readonly httpService: HttpService,
+    private readonly emailService: EmailService,
     
   ) {}
 
@@ -358,6 +364,11 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
           }).catch((error) => {
             this.logger.error('发送 Telegram 通知失败:', error);
           });
+
+          // 9. 异步发送邮件通知（仅支付成功时）
+          this.sendOrderSuccessEmail(paymentOrder.orderNo).catch((error) => {
+            this.logger.error('发送邮件通知失败:', error);
+          });
         }
       }
 
@@ -505,6 +516,11 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
           }).catch((error) => {
             this.logger.error('发送 Telegram 通知失败:', error);
           });
+
+          // 10. 异步发送邮件通知（仅支付成功时）
+          this.sendOrderSuccessEmail(paymentOrder.orderNo).catch((error) => {
+            this.logger.error('发送邮件通知失败:', error);
+          });
         }
       }
 
@@ -580,4 +596,58 @@ ${paymentNo ? `🔖 <b>支付编号:</b> <code>${paymentNo}</code>` : ''}
         throw error;
       }
     }
+
+  /**
+   * 发送订单成功邮件
+   */
+  private async sendOrderSuccessEmail(orderNo: string): Promise<void> {
+    try {
+      // 获取订单信息
+      const order = await this.orderRepo.findOne({ where: { orderNo } });
+      if (!order) {
+        this.logger.warn(`订单不存在，无法发送邮件: ${orderNo}`);
+        return;
+      }
+
+      // 检查是否有邮箱地址
+      if (!order.email) {
+        this.logger.warn(`订单没有邮箱地址，跳过邮件发送: ${orderNo}`);
+        return;
+      }
+
+      // 获取订单项
+      const items = await this.orderItemRepo.find({
+        where: { orderNo },
+        order: { itemId: 'ASC' },
+      });
+
+      // 发送邮件
+      await this.emailService.sendOrderSuccessEmail(order.email, {
+        orderNo: order.orderNo,
+        totalAmount: order.totalAmount,
+        currency: order.currency,
+        items: items.map(item => ({
+          productName: item.productName,
+          variantName: item.variantName || item.size || '',
+          quantity: item.quantity,
+          salePrice: item.salePrice,
+          subtotalAmount: item.subtotalAmount,
+          productImage: item.productImage || '',
+        })),
+        email: order.email,
+        fullName: order.fullName || `${order.firstName} ${order.lastName}`,
+        phone: order.phone || '',
+        address: order.address1 || '',
+        city: order.city || '',
+        province: order.province || '',
+        postalCode: order.postalCode || '',
+        country: order.country || '',
+        paidAt: order.paidAt || new Date(),
+      });
+
+      this.logger.log(`订单成功邮件发送成功: ${orderNo}`);
+    } catch (error) {
+      this.logger.error(`发送邮件失败 - 订单号: ${orderNo}`, error.message);
+    }
+  }
 }

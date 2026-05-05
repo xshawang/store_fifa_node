@@ -7,6 +7,7 @@ import { PaymentOrderEntity } from '../payment/entities/payment-order.entity'
 import { DeliverEntity } from '../payment/entities/deliver.entity'
 import { OrderService } from './order.service'
 import { OrderController } from './order.controller'
+import { OrderInfoOptimizedController } from './order-info-optimized.controller'
 import { CheckoutTemplateService } from './checkout-template.service'
 import { FacebookEventService } from './facebook-event.service'
 import { CartModule } from '../cart/cart.module'
@@ -18,7 +19,7 @@ import { CacheModule } from '@nestjs/cache-manager'
     forwardRef(() => CartModule),
     CacheModule.register(),
   ],
-  controllers: [OrderController],
+  controllers: [OrderController, OrderInfoOptimizedController],
   providers: [OrderService, CheckoutTemplateService, FacebookEventService],
   exports: [OrderService, CheckoutTemplateService, FacebookEventService],
 })

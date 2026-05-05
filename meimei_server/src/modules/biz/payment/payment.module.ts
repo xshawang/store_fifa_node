@@ -19,6 +19,7 @@ import { PaymentAdminController } from './controllers/payment-admin.controller';
 import { PaymentStrategy } from './interfaces/payment-strategy.interface';
 import { CartModule } from '../cart/cart.module';
 import { OrderModule } from '../order/order.module';
+import { EmailModule } from '../email/email.module';
 
 /**
  * 支付模块
@@ -38,6 +39,7 @@ import { OrderModule } from '../order/order.module';
     }),
     CartModule,  // 导入 CartModule 以使用 CookieService
     OrderModule,  // 导入 OrderModule 以使用 CheckoutTemplateService
+    EmailModule,  // 导入 EmailModule 以使用 EmailService
   ],
   controllers: [
     PaymentController,

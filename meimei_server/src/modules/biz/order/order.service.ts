@@ -39,6 +39,9 @@ export class OrderService {
     return timestamp + random
   }
 
+  async getDeliverByOrderNo(orderNo: string) {
+    return this.deliverRepository.findOne({ where: { orderNo } })
+  }
   /**
    * 从购物车创建订单
    */

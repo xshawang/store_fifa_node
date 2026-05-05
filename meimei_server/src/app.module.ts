@@ -25,6 +25,7 @@ import { ProductModule } from './modules/biz/product/product.module'
 import { CartModule } from './modules/biz/cart/cart.module'
 import { OrderModule } from './modules/biz/order/order.module'
 import { PaymentModule } from './modules/biz/payment/payment.module'
+import { EmailModule } from './modules/biz/email/email.module'
 
 /* 将 provider的类名作为别名，方便定时器调用 */
 const providers = [JobService]
@@ -57,6 +58,7 @@ const aliasProviders = createAliasProviders()
     CartModule,
     OrderModule,
     PaymentModule,
+    EmailModule,
 
     /* 业务模块 */
     CommonModule,
