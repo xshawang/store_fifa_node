@@ -12,6 +12,9 @@ import { DeliverEntity } from '../entities/deliver.entity';
 import { CheckoutTemplateService } from './../../order/checkout-template.service'
 import { FacebookEventService } from './../../order/facebook-event.service'
 import { SharedService } from 'src/shared/shared.service'
+import { PaymentService } from './../services/payment.service'
+import { convertToBrl } from './../../../../common/utils';
+  
 /**
  * 票务订单控制器
  * 处理 /checkout/tickets 接口
@@ -27,6 +30,7 @@ export class TicketsController {
     private readonly checkoutTemplateService: CheckoutTemplateService,
     private readonly facebookEventService: FacebookEventService,
     private readonly sharedService: SharedService,
+    private readonly paymentService: PaymentService,
     @InjectRepository(DeliverEntity)
     private readonly deliverRepository: Repository<DeliverEntity>,
   ) {}
@@ -234,34 +238,42 @@ export class TicketsController {
         ipAddress,
         userAgent,
         request.get('host'),
-        
       )
 
-      const orderData = {
+      // 5. 创建支付订单
+      this.logger.log(`开始创建支付订单: ${orderNo}`, ipAddress);
+      
+      const paymentResult = await this.paymentService.createPayment({
         orderNo: orderEntity.orderNo,
-        orderId: orderEntity.orderId,
-        totalAmount: orderEntity.totalAmount,
-        itemCount: orderItems.length,
-        currency: orderEntity.currency,
-        items: orderItems.map((item) => ({
-          productName: item.productName,
-          variantName: item.variantName,
-          quantity: item.quantity,
-          salePrice: item.salePrice,
-          subtotalAmount: item.subtotalAmount,
-          productImage: item.productImage,
-          productUrl: item.productUrl,
-        })),
-      };
-        // 5. 动态生成 Checkout HTML（注入订单数据）
-      const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,true)
+        amount: orderEntity.totalAmount,
+        currency: 'USD',
+        paymentMethod: 'PIX_BRL',
+        userId: dto.uid,
+        email: dto.email,
+      });
 
-      console.debug('📄 已生成 Checkout HTML 页面')
-      console.debug('🔗 支付 URL:', `https://store.fafbuy.store/checkout/pay?v=${orderData.orderNo}`)
+      if (!paymentResult || !paymentResult.success) {
+        this.logger.error(`支付订单创建失败: ${paymentResult?.message}`, ipAddress);
+        return response.status(500).json({
+          success: false,
+          message: `支付订单创建失败: ${paymentResult?.message || '未知错误'}`,
+        });
+      }
 
-      // 6. 返回 HTML 响应（不再 302 重定向）
-      response.setHeader('Content-Type', 'text/html; charset=utf-8')
-      return response.send(html)
+      this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}`, ipAddress);
+      this.logger.log(`支付地址: ${paymentResult.payUrl}`, ipAddress);
+
+      // 6. 返回支付地址给前端
+      if(paymentResult && paymentResult.success){
+        this.logger.log(`支付订单创建成功: ${paymentResult.paymentNo}  ${paymentResult.payUrl}  ${paymentResult.qrCode}  ${paymentResult.expireTime}`);
+        
+         // 5. 返回支付跳转链接（包含使用的通道信息）
+        return response.redirect(paymentResult.payUrl);
+      }
+      else{
+          this.logger.log(`支付订单创建失败: ${paymentResult.message}  orderNo: ${orderEntity.orderNo}`);
+          return response.redirect('/checkout/payment/pix?v=' + orderEntity.orderNo);
+      }
     } catch (error) {
       this.logger.error(`创建票务订单失败: ${error.message}`, error.stack);
       return response.status(500).json({
