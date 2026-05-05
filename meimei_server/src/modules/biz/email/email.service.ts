@@ -1,16 +1,24 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
-
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { convertToBrl } from './../../../common/utils';
-
+import { Order } from './../order/entities/order.entity';
+import { OrderItem } from './../order/entities/order-item.entity';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(Order)
+    private readonly orderRepo: Repository<Order>,
+    @InjectRepository(OrderItem)
+    private readonly orderItemRepo: Repository<OrderItem>,
+  ) {
     this.initializeTransporter();
   }
 
@@ -26,6 +34,59 @@ export class EmailService {
     });
   }
 
+  /**
+   * 发送订单成功邮件 (通过订单号)
+   */
+  async sendOrderSuccessEmailByOrderNo(orderNo: string): Promise<void> {
+    try {
+      // 获取订单信息
+      const order = await this.orderRepo.findOne({ where: { orderNo } });
+      if (!order) {
+        this.logger.warn(`订单不存在，无法发送邮件: ${orderNo}`);
+        return;
+      }
+
+      // 检查是否有邮箱地址
+      if (!order.email) {
+        this.logger.warn(`订单没有邮箱地址，跳过邮件发送: ${orderNo}`);
+        return;
+      }
+
+      // 获取订单项
+      const items = await this.orderItemRepo.find({
+        where: { orderNo },
+        order: { itemId: 'ASC' },
+      });
+
+      // 发送邮件
+      await this.sendOrderSuccessEmail(order.email, {
+        orderNo: order.orderNo,
+        totalAmount: order.totalAmount,
+        currency: order.currency,
+        items: items.map(item => ({
+          productName: item.productName,
+          variantName: item.variantName || item.size || '',
+          quantity: item.quantity,
+          salePrice: item.salePrice,
+          subtotalAmount: item.subtotalAmount,
+          productImage: item.productImage || '',
+        })),
+        email: order.email,
+        fullName: order.fullName || `${order.firstName} ${order.lastName}`,
+        phone: order.phone || '',
+        address: order.address1 || '',
+        city: order.city || '',
+        province: order.province || '',
+        postalCode: order.postalCode || '',
+        country: order.country || '',
+        paidAt: order.paidAt || new Date(),
+      });
+
+      this.logger.log(`订单成功邮件发送成功: ${orderNo}`);
+    } catch (error) {
+      this.logger.error(`发送邮件失败 - 订单号: ${orderNo}`, error.message);
+    }
+  }
   /**
    * 发送订单成功邮件
    */
