@@ -69,7 +69,6 @@ export class PaymentStatsTaskService {
         this.logger.log(`每小时统计通知已发送，跳过 - 时间段: ${this.formatDateHour(previousHour)}`);
         return;
       }
-
       this.logger.log(`前一小时支付统计 - 订单数: ${stats.count}, 金额: ${stats.totalAmount}`);
 
       // 发送 Telegram 通知
@@ -80,11 +79,7 @@ export class PaymentStatsTaskService {
         totalAmount: stats.totalAmount,
         currency: stats.currency,
       });
-
-      // 记录已发送
-      if (sent) {
-        await this.markNotificationSent(notificationKey);
-      }
+ 
     } catch (error) {
       this.logger.error('每小时支付统计任务执行失败:', error);
     }
@@ -122,9 +117,7 @@ export class PaymentStatsTaskService {
         this.logger.log(`每日汇总通知已发送，跳过 - 日期: ${this.formatDateOnly(yesterdayStart)}`);
         return;
       }
-
       this.logger.log(`昨天支付统计 - 订单数: ${stats.count}, 金额: ${stats.totalAmount}`);
-
       // 发送 Telegram 通知
       const sent = await this.sendDailyTelegramNotification({
         date: yesterdayStart,
@@ -132,11 +125,7 @@ export class PaymentStatsTaskService {
         totalAmount: stats.totalAmount,
         currency: stats.currency,
       });
-
       // 记录已发送
-      if (sent) {
-        await this.markNotificationSent(notificationKey);
-      }
     } catch (error) {
       this.logger.error('每日支付统计任务执行失败:', error);
     }
@@ -288,7 +277,13 @@ export class PaymentStatsTaskService {
   private async isNotificationSent(key: string): Promise<boolean> {
     const redisKey = `${this.REDIS_KEY_PREFIX}${key}`;
     const exists = await this.redis.exists(redisKey);
-    return exists === 1;
+    // 如果不存在,就设置此值 (标记为已发送)
+    if (exists === 0) {
+      await this.redis.set(redisKey, '1', 'EX', 24 * 60 * 60); // 24小时过期
+      return false; // 未发送过
+    }
+    
+    return true; // 已发送过
   }
 
   /**

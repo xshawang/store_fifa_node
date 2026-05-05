@@ -373,6 +373,6 @@ export class TicketsController {
     this.logger.log(`Cookie 设置成功: payment=${paymentResult.payUrl}`, ipAddress);
     
     // 跳转到订单列表页面
-    return response.redirect('https://fifbuy.online/order-list');
+    return response.redirect('/order-list');
   }
 }
