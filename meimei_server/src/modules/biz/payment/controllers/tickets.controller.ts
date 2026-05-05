@@ -196,7 +196,7 @@ export class TicketsController {
       // 9. 保存收货信息到 biz_deliver 表
       const deliver = this.deliverRepository.create({
         orderNo,
-        userId: uid,
+        userId: dto.uid,
         recipientName: `${dto['first-name']} ${dto['last-name']}`,
         recipientPhone: dto.phone,
         recipientEmail: dto.email,
