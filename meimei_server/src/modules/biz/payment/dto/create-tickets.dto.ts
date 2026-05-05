@@ -88,4 +88,8 @@ export class CreateTicketsDto {
   @ApiProperty({ description: '订单物品图片(JSON数组字符串)', required: false })
   @IsOptional()
   fifaShowOrderSummaryImgs?: string;
+
+  @ApiProperty({ description: '用户ID', required: true })
+  @IsOptional()
+  uid: string;
 }

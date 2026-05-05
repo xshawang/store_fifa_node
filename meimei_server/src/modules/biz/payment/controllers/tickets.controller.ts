@@ -51,9 +51,9 @@ export class TicketsController {
       this.logger.log(`接收到入参: ${JSON.stringify(dto)}`,ipAddress);
 
       // 1. 从 cookie 获取用户 uid
-      const cookieHeader = request.headers.cookie || '';
-      const uid = await this.cookieService.extractKeyFromCookie(cookieHeader, 'uid');
-      if (!uid) {
+   
+      
+      if (!dto.uid) {
         this.logger.error('用户 uid 不存在');
         return response.status(400).json({
           success: false,
@@ -61,7 +61,7 @@ export class TicketsController {
         });
       }
 
-      this.logger.log(`用户 uid: ${uid}`,ipAddress);
+      this.logger.log(`用户 uid: ${dto.uid}`,ipAddress);
 
       // 2. 解析订单摘要 (每5个元素为一个物品)
       let orderSummary = [] as string[];
@@ -129,7 +129,7 @@ export class TicketsController {
       const Order = (await import('../../order/entities/order.entity')).Order;
       const orderEntity = this.orderService['orderRepository'].create({
         orderNo,
-        userId: uid,
+        userId: dto.uid,
         token: '',
         orderStatus: 0,
         paymentStatus: 0,
