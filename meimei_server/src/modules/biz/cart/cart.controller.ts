@@ -110,7 +110,7 @@ export class CartController {
       const html = await this.checkoutTemplateService.generateCheckoutHtml(orderData,true)
 
       console.debug('📄 已生成 Checkout HTML 页面')
-      console.debug('🔗 支付 URL:', `https://store.fafbuy.store/checkout/pay?v=${orderData.orderNo}`)
+      console.debug('🔗 支付 URL:', `/checkout/pay?v=${orderData.orderNo}`)
 
       // 6. 返回 HTML 响应（不再 302 重定向）
       response.setHeader('Content-Type', 'text/html; charset=utf-8')
