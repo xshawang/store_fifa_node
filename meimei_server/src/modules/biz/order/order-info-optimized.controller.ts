@@ -70,8 +70,8 @@ export class OrderInfoOptimizedController {
     const orderStatusText = statusMap[order.orderStatus] || 'Desconhecido';
 
     const itemsHtml = items.map(item => {
-      const priceFormatted = item.salePrice
-      const subtotalFormatted = item.subtotalAmount ;
+      const priceFormatted = order.currency === 'BRL' ? item.salePrice : convertToBrl(item.salePrice, order.currency).brl;
+      const subtotalFormatted = order.currency === 'BRL' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, order.currency).brl;
       return `
         <div class="item-row">
           <div class="item-image">
