@@ -136,17 +136,17 @@ export class EmailService {
    */
   private generateOrderSuccessHtml(orderData: any, orderInfoUrl: string): string {
     
-    const totalAmountFormatted = orderData.currency === 'USD' ? orderData.totalAmount : convertToBrl(orderData.totalAmount, orderData.currency).brl;
-    const currencySymbol = orderData.currency === 'USD' ? '$' : 'R$';
+    const totalAmountFormatted = orderData.currency === 'BRL' ? orderData.totalAmount : convertToBrl(orderData.totalAmount, orderData.currency).brl;
+    const currencySymbol = orderData.currency === 'BRL' ? '$' : 'R$';
     const itemsHtml = orderData.items.map((item: any) => {
-      const priceFormatted = orderData.currency === 'USD' ? item.salePrice : convertToBrl(item.salePrice, orderData.currency).brl;
-      const subtotalFormatted = orderData.currency === 'USD' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, orderData.currency).brl;
+      const priceFormatted = orderData.currency === 'BRL' ? item.salePrice : convertToBrl(item.salePrice, orderData.currency).brl;
+      const subtotalFormatted = orderData.currency === 'BRL' ? item.subtotalAmount : convertToBrl(item.subtotalAmount, orderData.currency).brl;
       return `
         <div style="padding: 16px 0; border-bottom: 1px solid #e0e0e0;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td width="80" valign="top">
-                <img src="${item.productImage || 'https://cdn.shopify.com/s/files/1/0591/0478/8538/files/fifa_favicon.png'}" 
+                <img src="${item.productUrl || 'https://cdn.shopify.com/s/files/1/0591/0478/8538/files/fifa_favicon.png'}" 
                      alt="${item.productName}" 
                      width="64" height="64" 
                      style="border-radius: 4px; object-fit: cover;">
