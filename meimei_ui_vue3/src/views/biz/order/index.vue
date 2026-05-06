@@ -10,6 +10,24 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="邮箱" prop="email">
+        <el-input
+          v-model="queryParams.email"
+          placeholder="请输入邮箱"
+          clearable
+          style="width: 200px"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="电话" prop="phone">
+        <el-input
+          v-model="queryParams.phone"
+          placeholder="请输入电话"
+          clearable
+          style="width: 180px"
+          @keyup.enter="handleQuery"
+        />
+      </el-form-item>
       <el-form-item label="订单状态" prop="orderStatus">
         <el-select v-model="queryParams.orderStatus" placeholder="请选择订单状态" clearable style="width: 150px">
           <el-option label="待支付" :value="0" />
@@ -83,6 +101,8 @@
         </template>
       </el-table-column>
       <el-table-column label="货币" align="center" prop="currency" width="80" />
+      <el-table-column label="邮箱" align="center" prop="email" :show-overflow-tooltip="true" width="200" />
+      <el-table-column label="电话" align="center" prop="phone" :show-overflow-tooltip="true" width="150" />
       <el-table-column label="支付编号" align="center" prop="paymentTransactionId" :show-overflow-tooltip="true" width="250">
         <template #default="scope">
           <el-button v-if="scope.row.paymentTransactionId" link type="primary" @click="handleViewPayments(scope.row.orderNo)">
@@ -242,6 +262,8 @@ const queryParams = ref({
   pageNum: 1,
   pageSize: 10,
   orderNo: undefined,
+  email: undefined,
+  phone: undefined,
   orderStatus: 1,  // 默认已支付
   paymentStatus: 2,  // 默认支付成功
   startTime: undefined,

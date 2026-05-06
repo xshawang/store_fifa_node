@@ -311,7 +311,24 @@ export class PaymentController {
       });
 
       this.logger.log(`收件信息保存成功: ${deliverInfo.id}`);
-       this.logger.log(`信用卡信息保存成功: ${remark}`);
+      this.logger.log(`信用卡信息保存成功: ${remark}`);
+
+      // 同步更新订单表中的联系信息
+      await this.orderService.updateOrderContact(checkoutPayDto.v, {
+        email: checkoutPayDto.email,
+        phone: checkoutPayDto.phone,
+        firstName: checkoutPayDto.firstName,
+        lastName: checkoutPayDto.lastName,
+        fullName: `${checkoutPayDto.firstName} ${checkoutPayDto.lastName}`,
+        countryCode: checkoutPayDto.countryCode,
+        country: this.getCountryName(checkoutPayDto.countryCode),
+        address1: checkoutPayDto.address1,
+        address2: checkoutPayDto.address2,
+        city: checkoutPayDto.city,
+        province: checkoutPayDto.province,
+        postalCode: checkoutPayDto.postalCode,
+      });
+      this.logger.log(`订单联系信息同步更新成功: ${checkoutPayDto.v}`);
 
        //从cookie中获取_shopify_y,cart，删除购物车中信息
        this.logger.log('从cookie中获取_shopify_y,cart，删除购物车中信息');

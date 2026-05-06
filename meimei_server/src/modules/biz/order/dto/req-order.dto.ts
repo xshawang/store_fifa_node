@@ -44,6 +44,16 @@ export class QueryOrderDto {
   @IsOptional()
   @IsString()
   endTime?: string
+
+  @ApiProperty({ description: '邮箱地址', required: false })
+  @IsOptional()
+  @IsString()
+  email?: string
+
+  @ApiProperty({ description: '联系电话', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string
 }
 
 /**

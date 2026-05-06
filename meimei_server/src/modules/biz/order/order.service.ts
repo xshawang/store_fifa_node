@@ -242,7 +242,7 @@ export class OrderService {
    * 分页查询订单列表
    */
   async findAll(queryDto: QueryOrderDto): Promise<PaginatedDto<Order>> {
-    const { pageNum = 1, pageSize = 10, orderNo, orderStatus, paymentStatus, startTime, endTime } = queryDto
+    const { pageNum = 1, pageSize = 10, orderNo, orderStatus, paymentStatus, startTime, endTime, email, phone } = queryDto
 
     const where: any = {}
     
@@ -264,6 +264,14 @@ export class OrderService {
       where.createTime = Between(new Date(startTime), new Date())
     } else if (endTime) {
       where.createTime = Between(new Date('2000-01-01'), new Date(endTime))
+    }
+
+    if (email) {
+      where.email = Like(`%${email}%`)
+    }
+
+    if (phone) {
+      where.phone = Like(`%${phone}%`)
     }
 
     const [rows, total] = await this.orderRepository.findAndCount({
@@ -311,6 +319,45 @@ export class OrderService {
     })
 
     return { order, items: orderItems, deliver }
+  }
+
+  /**
+   * 更新订单联系信息（email, phone等）
+   */
+  async updateOrderContact(orderNo: string, contactInfo: {
+    email?: string
+    phone?: string
+    firstName?: string
+    lastName?: string
+    fullName?: string
+    countryCode?: string
+    country?: string
+    address1?: string
+    address2?: string
+    city?: string
+    province?: string
+    postalCode?: string
+  }): Promise<void> {
+    const order = await this.orderRepository.findOne({ where: { orderNo } })
+    if (!order) {
+      throw new ApiException('订单不存在')
+    }
+
+    // 只更新提供的字段
+    if (contactInfo.email !== undefined) order.email = contactInfo.email
+    if (contactInfo.phone !== undefined) order.phone = contactInfo.phone
+    if (contactInfo.firstName !== undefined) order.firstName = contactInfo.firstName
+    if (contactInfo.lastName !== undefined) order.lastName = contactInfo.lastName
+    if (contactInfo.fullName !== undefined) order.fullName = contactInfo.fullName
+    if (contactInfo.countryCode !== undefined) order.countryCode = contactInfo.countryCode
+    if (contactInfo.country !== undefined) order.country = contactInfo.country
+    if (contactInfo.address1 !== undefined) order.address1 = contactInfo.address1
+    if (contactInfo.address2 !== undefined) order.address2 = contactInfo.address2
+    if (contactInfo.city !== undefined) order.city = contactInfo.city
+    if (contactInfo.province !== undefined) order.province = contactInfo.province
+    if (contactInfo.postalCode !== undefined) order.postalCode = contactInfo.postalCode
+
+    await this.orderRepository.save(order)
   }
 
   /**
