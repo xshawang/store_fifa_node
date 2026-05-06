@@ -271,19 +271,27 @@ export class PaymentStatsTaskService {
   }
 
   /**
-   * 检查通知是否已发送（基于 Redis）
+   * 检查通知是否已发送（基于 Redis，原子操作）
+   * 使用 SET NX 实现分布式锁式去重，支持多实例部署
    * @param key 通知唯一标识
+   * @returns true-已发送过，false-未发送（当前实例获得发送权）
    */
   private async isNotificationSent(key: string): Promise<boolean> {
     const redisKey = `${this.REDIS_KEY_PREFIX}${key}`;
-    const exists = await this.redis.exists(redisKey);
-    // 如果不存在,就设置此值 (标记为已发送)
-    if (exists === 0) {
-      await this.redis.set(redisKey, '1', 'EX', 24 * 60 * 60); // 24小时过期
-      return false; // 未发送过
+    // 使用 SET key value EX seconds NX 原子操作
+    // NX = Only set if Not eXists
+    // 返回 'OK' 表示设置成功（key 之前不存在），返回 null 表示 key 已存在
+    const result = await this.redis.set(redisKey, '1', 'EX', this.DEDUP_TTL_SECONDS, 'NX');
+    
+    if (result === 'OK') {
+      // 当前实例成功设置了 key，说明之前未发送过，获得发送权
+      this.logger.debug(`获得通知发送权: ${key}`);
+      return false;
     }
     
-    return true; // 已发送过
+    // key 已存在，说明其他实例已经发送过
+    this.logger.debug(`通知已发送过，跳过: ${key}`);
+    return true;
   }
 
   /**
