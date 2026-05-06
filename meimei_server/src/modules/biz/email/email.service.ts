@@ -113,7 +113,7 @@ export class EmailService {
     paidAt: Date;
   }): Promise<void> {
     try {
-      const orderInfoUrl = `${this.configService.get<string>('APP_URL', 'https://store.fafbuy.store')}/order/info?sign=${orderData.orderNo}`;
+      const orderInfoUrl = `${this.configService.get<string>('APP_URL', 'https://store.fafbuy.store')}/order/v2/info?sign=${orderData.orderNo}`;
       
       const html = this.generateOrderSuccessHtml(orderData, orderInfoUrl);
 
