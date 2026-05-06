@@ -97,7 +97,7 @@
       </el-table-column>
       <el-table-column label="订单金额" align="center" prop="totalAmount" width="120">
         <template #default="scope">
-          {{ (scope.row.totalAmount / 100).toFixed(2) }}
+          {{ scope.row.totalAmount }}
         </template>
       </el-table-column>
       <el-table-column label="货币" align="center" prop="currency" width="80" />
