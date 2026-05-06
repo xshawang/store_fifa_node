@@ -138,7 +138,7 @@
           <el-tag v-else-if="detailData.orderStatus === 5" type="warning">退款中</el-tag>
           <el-tag v-else-if="detailData.orderStatus === 6" type="info">已退款</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="订单金额">{{ (detailData.totalAmount / 100).toFixed(2) }} {{ detailData.currency }}</el-descriptions-item>
+        <el-descriptions-item label="订单金额">{{ detailData.totalAmount }} {{ detailData.currency }}</el-descriptions-item>
         <el-descriptions-item label="支付状态">
           <el-tag v-if="detailData.paymentStatus === 0" type="info">未支付</el-tag>
           <el-tag v-else-if="detailData.paymentStatus === 1" type="warning">支付中</el-tag>
@@ -174,12 +174,12 @@
         <el-table-column label="数量" align="center" prop="quantity" width="80" />
         <el-table-column label="售价" align="center" prop="salePrice" width="100">
           <template #default="scope">
-            {{ (scope.row.salePrice / 100).toFixed(2) }}
+            {{ scope.row.salePrice}}
           </template>
         </el-table-column>
         <el-table-column label="小计" align="center" prop="subtotalAmount" width="100">
           <template #default="scope">
-            {{ (scope.row.subtotalAmount / 100).toFixed(2) }}
+            {{ scope.row.subtotalAmount }}
           </template>
         </el-table-column>
       </el-table>
